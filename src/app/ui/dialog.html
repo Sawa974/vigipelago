@@ -1,0 +1,25 @@
+<!-- `(close)` et non un bouton : l'echappement et le clic sur le fond passent par la. -->
+<dialog #dlg (close)="closed.emit()" (click)="onBackdrop($event)">
+  <form method="dialog" class="shell">
+    <header>
+      <h2>{{ heading() }}</h2>
+      <!-- `value` vide : une fermeture n'est pas une validation. -->
+      <button type="submit" class="x" value="" [attr.aria-label]="t('common.close')">×</button>
+    </header>
+
+    <div class="body">
+      <ng-content />
+    </div>
+
+    <footer>
+      <ng-content select="[dialogFooter]" />
+      <span class="spacer"></span>
+      @if (confirmLabel()) {
+        <button type="submit" class="primary" value="ok" (click)="confirmed.emit()">
+          {{ confirmLabel() }}
+        </button>
+      }
+      <button type="submit" value="">{{ closeLabel() || t('common.close') }}</button>
+    </footer>
+  </form>
+</dialog>

@@ -1,0 +1,57 @@
+<app-dialog [heading]="t('theme.title')" [open]="open()" (closed)="closed.emit()"
+            [confirmLabel]="t('theme.apply')" (confirmed)="apply()">
+  <div class="pick">
+    <div class="list" role="radiogroup" [attr.aria-label]="t('theme.list')">
+      @for (g of groups; track g.label) {
+        <p class="group">{{ t(g.label) }}</p>
+        @for (th of g.themes; track th.id) {
+          <label [class.on]="selected() === th.id">
+            <input type="radio" name="theme" [value]="th.id"
+                   [checked]="selected() === th.id" (change)="selected.set(th.id)" />
+            <span>{{ themeName(th.id) }}</span>
+            @if (theme.courant() === th.id) {
+              <span class="current">{{ t('theme.current') }}</span>
+            }
+          </label>
+        }
+      }
+    </div>
+
+    <div
+      class="theme-scope preview"
+      [attr.data-theme]="preview().id || null"
+      [attr.data-polarite]="preview().polarite === 'claire' ? 'claire' : null"
+      aria-hidden="true"
+    >
+      <div class="p-bar">
+        <span class="p-brand brand-font">{{ t('app.name') }}</span>
+        <span>{{ t('theme.preview.game') }}</span>
+        <span class="p-status">{{ t('state.online') }}</span>
+        <span class="p-spacer"></span>
+        <span class="p-muted">&#9776;</span>
+      </div>
+      <div class="p-tabs">
+        <span class="on">{{ t('tabs.console') }}</span>
+        <span>{{ t('tabs.players') }}</span>
+        <span>{{ t('tabs.stats') }}</span>
+      </div>
+      <div class="p-body">
+        <p><span class="p-ts">12:04</span> <span class="p-self">Ada</span> {{ t('theme.preview.found') }} <span class="c-prog">{{ t('theme.preview.item1') }}</span></p>
+        <p><span class="p-ts">12:06</span> <span class="p-other">Bob</span> {{ t('theme.preview.sends') }} <span class="c-useful">{{ t('theme.preview.item2') }}</span></p>
+        <p><span class="p-ts">12:09</span> <span class="p-other">Eve</span> {{ t('theme.preview.gets') }} <span class="c-trap">{{ t('theme.preview.item3') }}</span></p>
+        <svg class="p-chart" viewBox="0 0 160 60" preserveAspectRatio="none">
+          <line x1="0" y1="15" x2="160" y2="15" />
+          <line x1="0" y1="35" x2="160" y2="35" />
+          <polyline class="s1" points="0,55 30,48 60,40 90,30 120,22 160,10" />
+          <polyline class="s2" points="0,57 30,52 60,47 90,44 120,36 160,30" />
+          <polyline class="s3" points="0,58 40,56 80,50 120,48 160,42" />
+        </svg>
+        <p class="p-buttons">
+          <span class="p-btn">{{ t('theme.preview.button') }}</span>
+          <span class="p-btn primary">{{ t('theme.preview.confirm') }}</span>
+          <span class="p-tag warn">{{ t('state.backoff') }}</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</app-dialog>

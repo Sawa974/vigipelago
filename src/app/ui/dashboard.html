@@ -1,0 +1,632 @@
+<div class="filters">
+  <label class="check" [title]="t('st.compress.title')">
+    <input type="checkbox" [checked]="compress()" (change)="toggleCompress($event)" />
+    {{ t('st.compress') }}
+  </label>
+</div>
+
+<div #plot class="viz">
+  @if (!ap.roomId()) {
+    <p class="empty">{{ t('st.empty') }}</p>
+  } @else {
+    <!-- Avancement -->
+    <section>
+      <h3>{{ t('st.progress') }}</h3>
+
+      <!-- Frise de lecture : alignee sur l'aire de trace, pour que son curseur et celui des courbes aient la meme abscisse. -->
+      <div class="deck" role="group" [attr.aria-label]="t('st.deck')">
+        <div class="transport">
+          <div class="split">
+            <button type="button" class="play" (click)="togglePlay()"
+                    [attr.aria-label]="playing() ? t('st.pause') : t('st.playIn', { s: playSeconds() })"
+                    [title]="playing() ? t('st.pause') : t('st.play.title')">
+              <span aria-hidden="true">{{ playing() ? '❚❚' : '▶' }}</span>
+              <small aria-hidden="true">{{ playSeconds() }}s</small>
+            </button>
+            <button type="button" class="more" (click)="speedMenuOpen.set(!speedMenuOpen())"
+                    aria-haspopup="menu" [attr.aria-expanded]="speedMenuOpen()"
+                    [attr.aria-label]="t('st.speed')" [title]="t('st.speed.title')">
+              <span aria-hidden="true">▾</span>
+            </button>
+          </div>
+          @if (speedMenuOpen()) {
+            <ul class="speeds" role="menu">
+              @for (sp of playSpeeds; track sp) {
+                <li role="none">
+                  <button type="button" role="menuitemradio" [attr.aria-checked]="sp === playSeconds()"
+                          [class.on]="sp === playSeconds()" (click)="pickSpeed(sp)">
+                    {{ t('st.playIn', { s: sp }) }}
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+        <div class="player">
+          <input type="range" min="0" max="1000" step="1" [value]="cursorPermil()"
+                 (input)="onScrub($event)" [style.marginLeft.px]="geo().padLeft"
+                 [style.width.px]="plotWidth()" [attr.aria-label]="t('st.scrub')" />
+        </div>
+        <!-- Sous la glissiere : les ~60 px de `padRight` ne logent ni la date ni le retour. -->
+        <div class="player" [style.marginLeft.px]="geo().padLeft">
+          @if (live()) {
+            <span class="at">{{ connected() ? t('st.live') : t('st.end') }}</span>
+          } @else {
+            <span class="at warn">{{ t('st.replayAt') }} <strong>{{ cursorLabel() }}</strong></span>
+          }
+          @if (!live()) {
+            <button type="button" (click)="toLive()">{{ connected() ? t('st.toLive') : t('st.toEnd') }}</button>
+          }
+        </div>
+      </div>
+
+      @if (multiworld(); as mw) {
+        <p class="sub">
+          {{ t('st.mw', { found: (mw.found | number: '1.0-0') ?? '', placed: mw.placed ? ((mw.placed | number: '1.0-0') ?? '') : '?' }) }}
+          @if (mw.ratio !== null) {
+            — <strong>{{ (mw.ratio * 100).toFixed(1) }} %</strong>
+          }
+          @if (mw.slotsUnknown) {
+            <span class="warn" [title]="t('st.mw.neverQueried.title')">
+              — {{ t('st.mw.neverQueried', { count: mw.slotsUnknown }) }}
+            </span>
+          }
+          @if (mw.unplaced) {
+            <span class="muted" [title]="t('st.mw.unplaced.title')">
+              — {{ t('st.mw.unplaced', { count: mw.unplaced }) }}
+            </span>
+          }
+        </p>
+      }
+      <p class="legend">
+        @for (c of itemClasses; track c) {
+          <span class="serie"><span class="key" [class]="'key c-' + c"></span>{{ classGlyph[c] }} {{ t(classLabel[c]) }}</span>
+        }
+        @if (unclassified()) {
+          <span class="serie"><span class="key c-unknown"></span>{{ t('itemClass.unknown') }} ({{ unclassified() }})</span>
+        }
+      </p>
+
+      <ul class="bars">
+        <li class="head" aria-hidden="true">
+          <span class="a-name">{{ t('st.player') }}</span>
+          <span class="a-ctrack">{{ t('st.checks') }}</span>
+          <span class="a-cval"></span>
+          <span class="a-cpct"></span>
+          <span class="a-sep" aria-hidden="true"></span>
+          <span class="a-itrack">{{ t('st.itemsReceived') }}</span>
+          <span class="a-ival"></span>
+        </li>
+        @for (p of progress(); track p.slot) {
+          <li>
+            <span class="a-name bname" [title]="p.game">
+              @if (goalBadges().get(p.slot); as g) {
+                <span class="goalcup" [title]="g.title" [style.color]="g.color"
+                  ><svg class="ic" role="img" [attr.aria-label]="t('info.goal')"
+                    ><use href="#i-cup" /></svg
+                ></span>
+              }{{ p.name }}
+            </span>
+
+            <span class="a-ctrack btrack"
+                  [title]="p.total !== null ? t('st.checks.of', { checked: p.checked, total: p.total }) : t('st.checks.noTotal', { checked: p.checked })">
+              @if (p.ratio !== null) {
+                <span class="bfill" [style.width.%]="p.ratio * 100"></span>
+              } @else {
+                <span class="bunknown">{{ t('pl.totalUnknown') }}</span>
+              }
+            </span>
+            <span class="a-cval bval">
+              {{ p.checked }}<span class="muted">{{ p.total !== null ? ' / ' + p.total : '' }}</span>
+            </span>
+            <span class="a-cpct bpct">{{ p.ratio !== null ? (p.ratio * 100).toFixed(1) + ' %' : '—' }}</span>
+
+            <span class="a-sep" aria-hidden="true"></span>
+
+            <span class="a-itrack stack" [title]="t('st.byClass')">
+              @for (seg of classSegments(p.byClass); track seg.cls) {
+                <span [class]="seg.cls" [style.width.%]="seg.pct" [title]="seg.title"></span>
+              }
+            </span>
+            <span class="a-ival bval">
+              {{ p.itemsReceived }}
+              <span class="muted" [title]="t('st.progressionItems', { count: p.byClass.progression })">
+                ({{ p.byClass.progression }} {{ classGlyph['progression'] }})
+              </span>
+            </span>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <!-- Periodes de jeu : deduites des checks, une connexion ne dit pas qu'on joue. -->
+    <section>
+      <h3>
+        {{ t('st.periods') }}
+        <span class="info" [title]="t('st.periods.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
+      </h3>
+      @if (unplacedActivity()) {
+        <p class="sub warn" [title]="t('st.periods.unplaced.title')">
+          {{ t('st.periods.unplaced', { count: unplacedActivity() }) }}
+        </p>
+      }
+      <svg class="chart" [attr.width]="geo().width" [attr.height]="activityHeight()" role="img"
+           [attr.aria-label]="t('st.periods.aria')">
+        @for (g of gaps(); track g.x) {
+          <rect class="nodata" [attr.x]="g.x" [attr.y]="markBand()" [attr.width]="g.w"
+                [attr.height]="activityHeight() - geo().padBottom - markBand()">
+            <title>{{ g.title }}</title>
+          </rect>
+        }
+        @for (row of activityLanes(); track row.slot) {
+          <text class="lane-name" [attr.x]="geo().padLeft - 8"
+                [attr.y]="row.y + laneHeight * 0.75" text-anchor="end">
+            {{ row.name }}<title>{{ t('st.lane', { name: row.name, count: row.checks }) }}</title>
+          </text>
+          @for (r of row.rects; track r.x) {
+            <rect class="actrun" [attr.x]="r.x" [attr.y]="row.y"
+                  [attr.width]="r.w" [attr.height]="laneHeight" rx="2">
+              <title>{{ r.title }}</title>
+            </rect>
+          }
+        }
+        @for (tk of ticks(); track tk.x) {
+          <text class="axis" [attr.x]="tk.x" [attr.y]="activityHeight() - geo().padBottom + 16"
+                text-anchor="middle">{{ tk.time }}</text>
+          @if (tk.date) {
+            <text class="axis axis-date" [attr.x]="tk.x"
+                  [attr.y]="activityHeight() - geo().padBottom + 28" text-anchor="middle">{{ tk.date }}</text>
+          }
+        }
+        <!-- Objectifs atteints : traces en dernier, pour passer au-dessus des donnees. -->
+        @for (m of goalMarks(); track m.slot) {
+          <!-- Teinte sur le groupe, lue par `currentColor` : une regle de feuille bat un `[attr.stroke]`. -->
+          <g class="goal" [style.color]="m.color">
+            <title>{{ m.title }}</title>
+            <line [attr.x1]="m.x" [attr.x2]="m.x" [attr.y1]="markBand()"
+                  [attr.y2]="activityHeight() - geo().padBottom" />
+            <use href="#i-cup" [attr.x]="m.x - 7" y="1" width="14" height="14" />
+          </g>
+        }
+        <!-- Curseur trace en dernier : lisible par-dessus donnees et reperes. -->
+        @if (!live()) {
+          <line class="cursor" [attr.x1]="cursorX()" [attr.x2]="cursorX()"
+                [attr.y1]="markBand()" [attr.y2]="activityHeight() - geo().padBottom" />
+        }
+      </svg>
+    </section>
+
+    <!-- Objets par importance -->
+    <section>
+      <h3>
+        {{ t('st.byClass') }}
+        <span class="info" [title]="t('st.classTotals.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
+      </h3>
+      @if (classTotals(); as tk) {
+        @if (tk.total) {
+          <p class="sub">
+            <strong>{{ t('st.heard', { count: tk.total }) }}</strong>
+          </p>
+          <span class="stack" [title]="t('st.classTotals.stack')">
+            @for (seg of classTotalSegments(); track seg.cls) {
+              <span [class]="seg.cls" [style.width.%]="seg.pct" [title]="seg.title"></span>
+            }
+          </span>
+          <ul class="bars">
+            @for (c of itemClasses; track c) {
+              <li>
+                <span class="a-name bname">{{ classGlyph[c] }} {{ t(classLabel[c]) }}</span>
+                <span class="a-ctrack btrack">
+                  <span class="bfill" [style.width.%]="(tk.byClass[c] / tk.total) * 100"></span>
+                </span>
+                <span class="a-cval bval">{{ tk.byClass[c] | number: '1.0-0' }}</span>
+                <span class="a-cpct bpct">{{ ((tk.byClass[c] / tk.total) * 100).toFixed(1) }} %</span>
+              </li>
+            }
+            @if (tk.byClass.unknown) {
+              <li>
+                <span class="a-name bname" [title]="t('st.unresolved.title')">
+                  {{ t('itemClass.unknown') }}
+                </span>
+                <span class="a-ctrack btrack">
+                  <span class="bfill" [style.width.%]="(tk.byClass.unknown / tk.total) * 100"></span>
+                </span>
+                <span class="a-cval bval">{{ tk.byClass.unknown | number: '1.0-0' }}</span>
+                <span class="a-cpct bpct">{{ ((tk.byClass.unknown / tk.total) * 100).toFixed(1) }} %</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="sub">{{ t('st.classTotals.none') }}</p>
+        }
+      }
+    </section>
+
+    <!-- DeathLink : zero et « aucune donnee » different, un client sans le tag meurt sans qu'on le sache. -->
+    <section>
+      <h3>
+        {{ t('st.deaths') }}
+        <span class="info" [title]="t('st.deaths.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
+      </h3>
+
+      @if (!anyDeathLink()) {
+        <p class="sub warn" [title]="t('st.deaths.noTag.title')">
+          {{ t('st.deaths.noTag') }}
+        </p>
+      } @else {
+        <p>
+          <strong>{{ t('st.deaths.heard', { count: deaths().total }) }}</strong>
+          @if (deaths().unattributed) {
+            <span class="sub" [title]="t('st.deaths.unattributed.title')">
+              — {{ t('st.deaths.unattributed', { count: deaths().unattributed }) }}
+            </span>
+          }
+        </p>
+        @if (deaths().sources.length) {
+          <p class="sub">
+            {{ t('st.deaths.sources', { list: deaths().sources.join(', ') }) }}
+          </p>
+        }
+
+        <!-- Morts cumulees -->
+        @if (deathPaths().length) {
+          <p class="legend">
+            @for (l of deathPaths(); track l.slot) {
+              <span class="serie"><span class="key" [style.background]="l.color"></span>{{ l.name }}</span>
+            }
+          </p>
+          <svg class="chart" [attr.width]="geo().width"
+               [attr.height]="plotHeight + geo().padTop + geo().padBottom"
+               role="img" [attr.aria-label]="t('st.deaths.aria')">
+            @for (g of gaps(); track g.x) {
+              <rect class="nodata" [attr.x]="g.x" [attr.y]="geo().padTop" [attr.width]="g.w"
+                    [attr.height]="plotHeight">
+                <title>{{ g.title }}</title>
+              </rect>
+            }
+            @for (tk of deathYTicks(); track tk.label) {
+              <line class="grid" [attr.x1]="geo().padLeft" [attr.x2]="geo().width - geo().padRight"
+                    [attr.y1]="tk.y" [attr.y2]="tk.y" />
+              <text class="axis" [attr.x]="geo().padLeft - 8" [attr.y]="tk.y + 4"
+                    text-anchor="end">{{ tk.label }}</text>
+            }
+            @for (l of deathPaths(); track l.slot) {
+              <path class="serie-line" [attr.d]="l.d" [style.stroke]="l.color" fill="none" />
+            }
+            @for (l of deathLabels(); track l.slot) {
+              <circle [attr.cx]="l.endX" [attr.cy]="l.endY" r="4" [style.fill]="l.color" class="end-dot" />
+              <text class="end-label" [attr.x]="l.endX + 8" [attr.y]="l.endY + 4">{{ l.last }}</text>
+            }
+            @for (tk of ticks(); track tk.x) {
+              <text class="axis" [attr.x]="tk.x" [attr.y]="plotHeight + geo().padTop + 16"
+                    text-anchor="middle">{{ tk.time }}</text>
+              @if (tk.date) {
+                <text class="axis axis-date" [attr.x]="tk.x" [attr.y]="plotHeight + geo().padTop + 28"
+                      text-anchor="middle">{{ tk.date }}</text>
+              }
+            }
+            @for (m of goalMarks(); track m.slot) {
+              <g class="goal" [style.color]="m.color">
+                <title>{{ m.title }}</title>
+                <line [attr.x1]="m.x" [attr.x2]="m.x" [attr.y1]="markBand()"
+                      [attr.y2]="geo().padTop + plotHeight" />
+                <use href="#i-cup" [attr.x]="m.x - 7" y="1" width="14" height="14" />
+              </g>
+            }
+            @if (!live()) {
+              <line class="cursor" [attr.x1]="cursorX()" [attr.x2]="cursorX()"
+                    [attr.y1]="geo().padTop" [attr.y2]="geo().padTop + plotHeight" />
+            }
+          </svg>
+        }
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('st.player') }}</th>
+              <th class="num">{{ t('st.col.deaths') }}</th>
+              <th class="num" [title]="t('st.col.share.title')">
+                {{ t('st.col.share') }}
+              </th>
+              <th [title]="t('st.col.know.title')">
+                {{ t('st.col.know') }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of deathRows(); track r.slot) {
+              <tr>
+                <td>{{ r.name }}</td>
+                <td class="num">
+                  @if (r.count === null) {
+                    <span class="muted">{{ t('tile.deaths.noData') }}</span>
+                  } @else {
+                    {{ r.count }}
+                  }
+                </td>
+                <td class="num">
+                  @if (r.share === null) {
+                    <span class="muted">—</span>
+                  } @else {
+                    {{ (r.share * 100).toFixed(0) }} %
+                  }
+                </td>
+                <td>{{ r.why }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        </div>
+      }
+    </section>
+
+    <!-- Objets recus, cumule -->
+    <section>
+      <h3>
+        {{ t('st.cumul') }}
+        <span class="info" [title]="t('st.cumul.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
+      </h3>
+      <div class="segmented filter" role="group" [attr.aria-label]="t('st.cumul.filter')">
+        <button type="button" [class.on]="itemClass() === 'all'" (click)="itemClass.set('all')">{{ t('pf.all') }}</button>
+        @for (c of itemClasses; track c) {
+          <button type="button" [class.on]="itemClass() === c" (click)="itemClass.set(c)">
+            {{ classGlyph[c] }} {{ t(classLabel[c]) }}
+          </button>
+        }
+      </div>
+      @if (hiddenSeriesCount() > 0) {
+        <p class="sub warn">{{ t('st.cumul.hidden', { count: hiddenSeriesCount() }) }}</p>
+      }
+      <p class="legend">
+        @for (l of linePaths(); track l.slot) {
+          <span class="serie"><span class="key" [style.background]="l.color"></span>{{ l.name }}</span>
+        }
+      </p>
+      <svg class="chart" [attr.width]="geo().width" [attr.height]="plotHeight + geo().padTop + geo().padBottom"
+           role="img" [attr.aria-label]="t('st.cumul.aria')">
+        @for (g of gaps(); track g.x) {
+          <rect class="nodata" [attr.x]="g.x" [attr.y]="geo().padTop" [attr.width]="g.w"
+                [attr.height]="plotHeight">
+            <title>{{ g.title }}</title>
+          </rect>
+        }
+        @for (tk of yTicks(); track tk.label) {
+          <line class="grid" [attr.x1]="geo().padLeft" [attr.x2]="geo().width - geo().padRight"
+                [attr.y1]="tk.y" [attr.y2]="tk.y" />
+          <text class="axis" [attr.x]="geo().padLeft - 8" [attr.y]="tk.y + 4" text-anchor="end">{{ tk.label }}</text>
+        }
+        @for (l of linePaths(); track l.slot) {
+          <path class="serie-line" [attr.d]="l.d" [attr.stroke]="l.color" fill="none" />
+        }
+        @for (l of directLabels(); track l.slot) {
+          <circle [attr.cx]="l.endX" [attr.cy]="l.endY" r="4" [attr.fill]="l.color" class="end-dot" />
+          <text class="end-label" [attr.x]="l.endX + 8" [attr.y]="l.endY + 4">{{ l.last }}</text>
+        }
+        @for (tk of ticks(); track tk.x) {
+          <text class="axis" [attr.x]="tk.x" [attr.y]="plotHeight + geo().padTop + 16"
+                text-anchor="middle">{{ tk.time }}</text>
+          @if (tk.date) {
+            <text class="axis axis-date" [attr.x]="tk.x" [attr.y]="plotHeight + geo().padTop + 28"
+                  text-anchor="middle">{{ tk.date }}</text>
+          }
+        }
+        <!-- Objectifs atteints : traces en dernier, pour passer au-dessus des donnees. -->
+        @for (m of goalMarks(); track m.slot) {
+          <!-- Teinte sur le groupe, lue par `currentColor` : une regle de feuille bat un `[attr.stroke]`. -->
+          <g class="goal" [style.color]="m.color">
+            <title>{{ m.title }}</title>
+            <line [attr.x1]="m.x" [attr.x2]="m.x" [attr.y1]="markBand()"
+                  [attr.y2]="geo().padTop + plotHeight" />
+            <use href="#i-cup" [attr.x]="m.x - 7" y="1" width="14" height="14" />
+          </g>
+        }
+        <!-- Curseur trace en dernier : lisible par-dessus donnees et reperes. -->
+        @if (!live()) {
+          <line class="cursor" [attr.x1]="cursorX()" [attr.x2]="cursorX()"
+                [attr.y1]="geo().padTop" [attr.y2]="geo().padTop + plotHeight" />
+        }
+      </svg>
+    </section>
+
+    <!-- Checks par tranche -->
+    <section>
+      <h3>
+        {{ t('st.hist') }}
+        <span class="info" [title]="t('st.hist.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
+      </h3>
+      <p class="sub">
+        {{ t('st.hist.placed', { count: placedChecks() }) }}
+        @if (unplacedChecks()) {
+          <span class="warn">{{ t('st.hist.unplaced', { count: unplacedChecks() }) }}</span>
+        }
+      </p>
+      <p class="legend">
+        @for (c of itemClasses; track c) {
+          <span class="serie"><span class="key" [class]="'key c-' + c"></span>{{ classGlyph[c] }} {{ t(classLabel[c]) }}</span>
+        }
+      </p>
+      <svg class="chart" [attr.width]="geo().width" [attr.height]="histHeight + geo().padTop + geo().padBottom"
+           role="img" [attr.aria-label]="t('st.hist.aria')">
+        @for (g of gaps(); track g.x) {
+          <rect class="nodata" [attr.x]="g.x" [attr.y]="geo().padTop" [attr.width]="g.w"
+                [attr.height]="histHeight">
+            <title>{{ g.title }}</title>
+          </rect>
+        }
+        <line class="grid" [attr.x1]="geo().padLeft" [attr.x2]="geo().width - geo().padRight"
+              [attr.y1]="geo().padTop + histHeight" [attr.y2]="geo().padTop + histHeight" />
+        <text class="axis" [attr.x]="geo().padLeft - 8" [attr.y]="geo().padTop + 10" text-anchor="end">{{ histMax() }}</text>
+        <text class="axis" [attr.x]="geo().padLeft - 8" [attr.y]="geo().padTop + histHeight + 4" text-anchor="end">0</text>
+        @for (c of columns(); track c.x) {
+          @for (seg of c.segments; track seg.cls) {
+            <rect [attr.class]="'column ' + seg.cls" [attr.x]="c.x" [attr.y]="seg.y"
+                  [attr.width]="c.w" [attr.height]="seg.h">
+              <title>{{ c.label }}</title>
+            </rect>
+          }
+          <!-- Cible de survol elargie : la colonne seule serait trop fine a viser. -->
+          <rect class="hit" [attr.x]="c.x - 1" [attr.y]="geo().padTop" [attr.width]="c.w + 2" [attr.height]="histHeight">
+            <title>{{ c.label }}</title>
+          </rect>
+        }
+        @for (tk of ticks(); track tk.x) {
+          <text class="axis" [attr.x]="tk.x" [attr.y]="histHeight + geo().padTop + 16"
+                text-anchor="middle">{{ tk.time }}</text>
+          @if (tk.date) {
+            <text class="axis axis-date" [attr.x]="tk.x" [attr.y]="histHeight + geo().padTop + 28"
+                  text-anchor="middle">{{ tk.date }}</text>
+          }
+        }
+        <!-- Objectifs atteints : traces en dernier, pour passer au-dessus des donnees. -->
+        @for (m of goalMarks(); track m.slot) {
+          <!-- Teinte sur le groupe, lue par `currentColor` : une regle de feuille bat un `[attr.stroke]`. -->
+          <g class="goal" [style.color]="m.color">
+            <title>{{ m.title }}</title>
+            <line [attr.x1]="m.x" [attr.x2]="m.x" [attr.y1]="markBand()"
+                  [attr.y2]="geo().padTop + histHeight" />
+            <use href="#i-cup" [attr.x]="m.x - 7" y="1" width="14" height="14" />
+          </g>
+        }
+        <!-- Curseur trace en dernier : lisible par-dessus donnees et reperes. -->
+        @if (!live()) {
+          <line class="cursor" [attr.x1]="cursorX()" [attr.x2]="cursorX()"
+                [attr.y1]="geo().padTop" [attr.y2]="geo().padTop + histHeight" />
+        }
+      </svg>
+    </section>
+
+    <!-- Vue tableau : aucune valeur n'est accessible seulement au survol. -->
+    <section>
+      <h3>{{ t('st.table') }}</h3>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('st.player') }}</th>
+              <th>{{ t('st.game') }}</th>
+              <th class="num">{{ t('st.checks') }}</th>
+              <th class="num">{{ t('st.total') }}</th>
+              <th class="num">%</th>
+              <th class="num">{{ t('st.approx') }}</th>
+              <th class="num">{{ t('st.itemsReceived') }}</th>
+              <th class="num">{{ t('st.cls.progression') }}</th>
+              <th class="num">{{ t('st.cls.useful') }}</th>
+              <th class="num">{{ t('st.cls.filler') }}</th>
+              <th class="num">{{ t('st.cls.trap') }}</th>
+              <th class="num">{{ t('st.cls.unknown') }}</th>
+              <th class="num">{{ t('st.col.deaths') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of progress(); track p.slot) {
+              <tr>
+                <td>{{ p.name }}</td>
+                <td class="muted">{{ p.game }}</td>
+                <td class="num">{{ p.checked }}</td>
+                <td class="num">{{ p.total ?? '—' }}</td>
+                <td class="num">{{ p.ratio !== null ? (p.ratio * 100).toFixed(1) : '—' }}</td>
+                <td class="num">{{ p.approx }}</td>
+                <td class="num">{{ p.itemsReceived }}</td>
+                <td class="num">{{ p.byClass.progression }}</td>
+                <td class="num">{{ p.byClass.useful }}</td>
+                <td class="num">{{ p.byClass.filler }}</td>
+                <td class="num">{{ p.byClass.trap }}</td>
+                <td class="num">{{ p.byClass.unknown }}</td>
+                <!-- « aucune donnee » et non zero : un slot sans le tag DeathLink n'emet rien. -->
+                @if (deathBySlot().get(p.slot); as d) {
+                  <td class="num" [title]="d.count === null ? deathWhy(d.knowledge) : ''">
+                    @if (d.count === null) {
+                      <span class="muted">—</span>
+                    } @else {
+                      {{ d.count }}
+                    }
+                  </td>
+                } @else {
+                  <td class="num"><span class="muted">—</span></td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Tableau personnalise -->
+    <section>
+      <h3>
+        {{ t('st.custom') }}
+        <span class="info" [title]="t('st.custom.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
+      </h3>
+      @if (compactHidden()) {
+        <p class="sub">
+          {{ t('st.custom.top', { limit: compactRowLimit }) }}
+          <span class="warn">{{ t('st.custom.hidden', { count: compactHidden() }) }}</span>
+        </p>
+      }
+      <p class="player">
+        <button type="button" (click)="pickerOpen.set(true)">{{ t('st.custom.pick') }}</button>
+        <span class="muted">
+          {{ t('st.custom.shown', { count: compactShown().length + 1, max: compactMax }) }}
+        </span>
+      </p>
+      <div class="tablewrap">
+        <table class="compact">
+          <thead>
+            <tr>
+              <th>{{ t('st.player') }}</th>
+              @for (c of compactShown(); track c.key) {
+                <th [class.num]="c.num">{{ t(c.label) }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of compactRows(); track r.slot) {
+              <tr>
+                <td [title]="r.game">{{ r.name }}</td>
+                @for (c of r.cells; track c.key) {
+                  <td [class.num]="c.num" [title]="c.title">
+                    @if (c.text === '—') {
+                      <span class="muted">—</span>
+                    } @else {
+                      {{ c.text }}
+                    }
+                  </td>
+                }
+              </tr>
+            } @empty {
+              <tr><td class="muted">{{ t('st.custom.none') }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <app-dialog
+        [heading]="t('st.custom.dialog')"
+        [open]="pickerOpen()"
+        (closed)="pickerOpen.set(false)"
+      >
+        <p class="sub">{{ t('st.custom.nameAlways') }}</p>
+        <!-- Sur sa propre ligne, sinon son apparition deforme le dialogue. -->
+        @if (compactFull()) {
+          <p class="sub warn">{{ t('st.custom.max', { max: compactMax }) }}</p>
+        }
+        <ul class="cols">
+          @for (c of compactColumns; track c.key) {
+            <li>
+              <label [class.off]="!isColumnOn(c.key) && compactFull()">
+                <input
+                  type="checkbox"
+                  [checked]="isColumnOn(c.key)"
+                  [disabled]="!isColumnOn(c.key) && compactFull()"
+                  (change)="toggleColumn(c.key)"
+                />
+                {{ t(c.label) }}
+              </label>
+            </li>
+          }
+        </ul>
+      </app-dialog>
+    </section>
+  }
+</div>

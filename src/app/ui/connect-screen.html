@@ -1,0 +1,146 @@
+<section class="connect">
+  <header class="head">
+    <h1 class="brand-font">{{ t('app.name') }}</h1>
+    <p class="tag">{{ t('home.tagline') }}</p>
+  </header>
+
+  @if (anyError(); as e) {
+    <p class="error" role="alert">{{ e }}</p>
+  }
+  @if (note()) {
+    <p class="note" role="status">{{ note() }}</p>
+  }
+
+  @if (formOpen()) {
+    <h2 class="sec">{{ rows().length ? t('home.addServer') : t('home.connect') }}</h2>
+    <!-- Pas d'autoremplissage : `new-password` est la seule valeur respectee, les data-* ecartent LastPass et 1Password. -->
+    <form class="add" (ngSubmit)="submitNew()" autocomplete="off">
+      <label class="wide">
+        {{ t('home.field.name') }}
+        <input type="text" [(ngModel)]="newLabel" name="nlabel" autocomplete="off" [placeholder]="t('home.field.name.placeholder')" [disabled]="busy()" />
+      </label>
+      <label>
+        {{ t('home.field.host') }}
+        <input type="text" [(ngModel)]="newHost" name="nhost" autocomplete="off" required [disabled]="busy()" />
+      </label>
+      <label>
+        {{ t('home.field.port') }}
+        <input type="number" [(ngModel)]="newPort" name="nport" autocomplete="off" required [disabled]="busy()" />
+      </label>
+      <label>
+        {{ t('home.field.slot') }}
+        <input type="text" [(ngModel)]="newSlot" name="nslot" autocomplete="off" data-lpignore="true" data-1p-ignore required [placeholder]="t('home.field.slot.placeholder')" [disabled]="busy()" />
+      </label>
+      <label>
+        {{ t('home.field.password') }}
+        <input type="password" [(ngModel)]="newPassword" name="npassword" autocomplete="new-password" data-lpignore="true" data-1p-ignore [placeholder]="t('home.field.optional')" [disabled]="busy()" />
+      </label>
+      <div class="addacts">
+        <button type="submit" class="go" [disabled]="busy() || !newSlot().trim() || !newHost().trim()">
+          {{ busy() ? t('state.connecting') : t('home.connect') }}
+        </button>
+        @if (rows().length) {
+          <button type="button" class="ghost" (click)="cancelAdding()" [disabled]="busy()">{{ t('common.cancel') }}</button>
+        }
+      </div>
+    </form>
+  } @else {
+    <button type="button" class="addlink" (click)="startAdding()" [disabled]="busy()">{{ t('home.addLink') }}</button>
+  }
+
+  @if (rows().length) {
+    <h2 class="sec">{{ t('home.resume') }}</h2>
+    <ul class="list">
+      @for (p of rows(); track p.id) {
+        <li class="row" [class.open]="openId() === p.id">
+          <button
+            type="button"
+            class="main"
+            (click)="open(p)"
+            [disabled]="busy()"
+            [attr.aria-expanded]="openId() === p.id"
+          >
+            <span class="name">{{ label(p) }}</span>
+            <span class="meta">
+              <span class="slot">{{ p.slotName }}</span>
+              <span class="dot">·</span>
+              <span class="room">{{ subtitle(p) }}</span>
+              @if (lastUsedLabel(p)) {
+                <span class="dot">·</span>
+                <span class="when">{{ lastUsedLabel(p) }}</span>
+              }
+            </span>
+          </button>
+
+          <div class="acts">
+            <button type="button" (click)="startEdit(p)" [disabled]="busy()" [title]="t('home.edit.title')">{{ t('home.edit') }}</button>
+            <button type="button" (click)="exportRow(p)" [disabled]="busy() || !p.roomId" [title]="t('home.export.title')">{{ t('home.export') }}</button>
+            <button type="button" class="danger" (click)="askDelete(p)" [disabled]="busy()" [title]="t('home.delete.title')">{{ t('home.delete') }}</button>
+          </div>
+
+          <!-- Ni hote ni port a l'ecran (stream). -->
+          @if (openId() === p.id) {
+            <form class="resume" (ngSubmit)="submitKnown(p)" autocomplete="off">
+              <label>
+                {{ t('home.field.password') }}
+                <input
+                  type="password"
+                  [(ngModel)]="password"
+                  name="password"
+                  autocomplete="new-password"
+                  data-lpignore="true"
+                  data-1p-ignore
+                  [placeholder]="t('home.field.password.resume')"
+                  [disabled]="busy()"
+                  autofocus
+                />
+              </label>
+              <button type="submit" class="go" [disabled]="busy()">
+                {{ busy() ? t('state.connecting') : t('home.connect') }}
+              </button>
+              <!-- Seul chemin vers une ancienne partie quand le serveur en sert une autre. -->
+              @if (p.roomId) {
+                <button type="button" class="ghost" (click)="browseAsked.emit(p)" [disabled]="busy()">{{ t('home.browse') }}</button>
+              }
+            </form>
+          }
+
+          @if (editId() === p.id) {
+            <form class="edit" (ngSubmit)="saveEdit(p)" autocomplete="off">
+              <label>{{ t('home.field.name') }} <input type="text" [(ngModel)]="editLabel" name="label" placeholder="{{ label(p) }}" /></label>
+              <label>{{ t('home.field.host') }} <input type="text" [(ngModel)]="editHost" name="host" autocomplete="off" required /></label>
+              <label>{{ t('home.field.port') }} <input type="number" [(ngModel)]="editPort" name="port" autocomplete="off" required /></label>
+              <label>{{ t('home.field.slot') }} <input type="text" [(ngModel)]="editSlot" name="slot" required autocomplete="off" data-lpignore="true" data-1p-ignore /></label>
+              <div class="editacts">
+                <button type="submit">{{ t('common.save') }}</button>
+                <button type="button" class="ghost" (click)="cancelEdit()">{{ t('common.cancel') }}</button>
+              </div>
+            </form>
+          }
+
+          @if (confirmId() === p.id) {
+            <div class="confirm" role="alertdialog">
+              <p class="warn">{{ t('home.confirm', { name: label(p) }) }}</p>
+              @if (confirmPreview(); as d) {
+                <ul class="tally">
+                  <li>{{ t('home.tally.events', { count: d.events }) }}</li>
+                  <li>{{ t('home.tally.sessions', { count: d.sessions }) }}</li>
+                  <li>{{ t('home.tally.snapshots', { count: d.snapshots }) }}</li>
+                </ul>
+                @if (d.events) {
+                  <p class="hint">{{ t('home.exportFirst') }}</p>
+                }
+              }
+              <div class="editacts">
+                <button type="button" class="danger" (click)="confirmDelete(p)">{{ t('home.deleteForever') }}</button>
+                <button type="button" class="ghost" (click)="cancelDelete()">{{ t('common.cancel') }}</button>
+              </div>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  }
+
+  <p class="foot">{{ t('home.foot') }}</p>
+</section>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" translate="no">
+<head>
+  <meta charset="utf-8">
+  <!-- La traduction du navigateur se battrait avec le rendu d'Angular. -->
+  <meta name="google" content="notranslate">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Vigipelago</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <!-- Pose le theme avant le premier rendu, sinon flash du theme par defaut ; cle = THEME_KEY de core/theme.ts. -->
+  <script>
+    try {
+      var r = document.documentElement;
+      var t = localStorage.getItem('vigipelago.theme');
+      if (t) r.setAttribute('data-theme', t);
+      // Sans la polarite, un theme clair s'afficherait un instant avec le jeu de couleurs
+      // sombre : texte clair sur fond clair.
+      if (localStorage.getItem('vigipelago.polarite') === 'claire')
+        r.setAttribute('data-polarite', 'claire');
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <app-root></app-root>
+</body>
+</html>

@@ -1,0 +1,557 @@
+@if (!roster().length) {
+  <p class="empty">{{ t('pl.empty') }}</p>
+} @else {
+  <div class="split">
+    <!-- La liste -->
+    <nav class="roster" [attr.aria-label]="t('tabs.players')">
+      <h2>{{ t('tabs.players') }}</h2>
+      <ul class="players">
+        @for (p of roster(); track p.slot) {
+          <li [class.self]="p.self" [class.on]="p.slot === selected()">
+            <button
+              type="button"
+              class="prow"
+              [attr.aria-current]="p.slot === selected() ? 'true' : null"
+              (click)="select(p.slot)"
+            >
+              <span
+                class="dot"
+                [class]="'pr-' + p.presence"
+                [class.tc]="p.textClient"
+                [title]="presenceTitle(p)"
+                aria-hidden="true"
+                >{{ presenceGlyph(p.presence) }}</span
+              >
+              <span class="pname" [title]="p.name">{{ p.name }}</span>
+              <span class="pgame" [title]="p.game">{{ p.game }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </nav>
+
+    <!-- Le joueur regarde -->
+    <section class="detail" [class.stale]="loading()">
+      @if (current(); as p) {
+        <header class="who">
+          <h2>
+            {{ p.name }}
+            @if (p.self) {
+              <span class="badge">{{ t('pl.you') }}</span>
+            }
+          </h2>
+          <p class="sub">
+            {{ p.game }} — {{ t('pl.slot', { slot: p.slot }) }} ·
+            <span [class]="'pstate pr-' + p.presence" [title]="presenceTitle(p)">
+              {{ presenceGlyph(p.presence) }} {{ presenceWord(p.presence) }}
+            </span>
+            @if (p.presence === 'observer' || p.textClient) {
+              <label
+                class="chk"
+                [title]="t('pl.textClient.title')"
+              >
+                <input type="checkbox" [checked]="p.textClient" (change)="toggleTextClient(p.slot)" />
+                {{ t('pl.textClient') }}
+              </label>
+            }
+            @if (loading()) {
+              <span class="muted">{{ t('pl.reading') }}</span>
+            }
+          </p>
+
+        </header>
+
+        <!-- Bandeau de trois tuiles -->
+        <div class="pband">
+          <div class="tiles">
+            @if (progressTile(); as tl) {
+              <div class="tile" [class.warn]="tl.warn">
+                <span class="tval"
+                  >@if (tl.trophy) {
+                    <!-- Une coupe et non un pourcentage : ce 100 % viendrait du release, pas d'une partie fouillee. -->
+                    <svg class="ic" role="img" [attr.aria-label]="t('info.goal')"><use href="#i-cup" /></svg>
+                  } @else {
+                    {{ tl.value }}
+                  }<span class="info" [title]="tl.note" aria-hidden="true"
+                    ><svg class="ic"><use href="#i-info" /></svg></span
+                  ></span
+                >
+                <span class="tcap">{{ tl.caption }}</span>
+              </div>
+            }
+            @if (hintTile(); as tl) {
+              <div class="tile" [class.warn]="tl.warn">
+                <span class="tval"
+                  >{{ tl.value }}<span class="info" [title]="tl.note" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span></span
+                >
+                <span class="tcap">{{ tl.caption }}</span>
+                <span class="tcap tdet">{{ tl.detail }}</span>
+              </div>
+            }
+            @if (deathTile(); as tl) {
+              <div class="tile" [class.warn]="tl.warn">
+                <span class="tval"
+                  >{{ tl.value }}<span class="info" [title]="tl.note" aria-hidden="true"
+                    ><svg class="ic"><use href="#i-info" /></svg></span
+                  ></span
+                >
+                <span class="tcap">{{ tl.caption }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="pstats">
+            @if (flows(); as f) {
+            <section class="part">
+              <h3>
+                {{ t('pl.flow.sent') }}
+                <span class="hl">
+                  {{ t('pl.count.items', { count: f.sentTotal }) }}
+                  @if (f.sentPartners) {
+                    <span class="muted">{{ t('pl.toPlayers', { count: f.sentPartners }) }}</span>
+                  }
+                </span>
+              </h3>
+              @if (f.sent.length) {
+                <ul class="flow">
+                  @for (r of f.sent; track r.slot ?? -1) {
+                    <li>
+                      <span class="fname" [class.muted]="r.slot === null" [title]="flowName(r)">{{ flowName(r) }}</span>
+                      <span class="meter" [title]="t('pl.flow.sentMeter', { count: r.count, total: f.sentTotal })">
+                        <span class="mfill" [style.width.%]="r.share * 100"></span>
+                      </span>
+                      <span class="fval">{{ r.count }}</span>
+                    </li>
+                  }
+                </ul>
+                @if (f.sent.length && f.sent[f.sent.length - 1].slot === null) {
+                  <p class="cap" [title]="t('pl.flow.cap.title', { limit: flowRowLimit })">
+                    {{ t('pl.flow.cap', { limit: flowRowLimit }) }}
+                  </p>
+                }
+              } @else {
+                <p class="nometer">{{ t('pl.flow.sentNone') }}</p>
+              }
+            </section>
+
+            <section class="part">
+              <h3>
+                {{ t('pl.flow.received') }}
+                <span class="hl">
+                  {{ t('pl.count.items', { count: f.receivedTotal }) }}
+                  @if (f.receivedPartners) {
+                    <span class="muted">{{ t('pl.fromWorlds', { count: f.receivedPartners }) }}</span>
+                  }
+                </span>
+              </h3>
+              @if (f.received.length) {
+                <ul class="flow">
+                  @for (r of f.received; track r.slot ?? -1) {
+                    <li>
+                      <span class="fname" [class.muted]="r.slot === null" [title]="flowName(r)">{{ flowName(r) }}</span>
+                      <span class="meter" [title]="t('pl.flow.receivedMeter', { count: r.count, total: f.receivedTotal })">
+                        <span class="mfill" [style.width.%]="r.share * 100"></span>
+                      </span>
+                      <span class="fval">{{ r.count }}</span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="nometer">{{ t('pl.flow.receivedNone') }}</p>
+              }
+              @if (f.unplacedReceived) {
+                <p class="cap" [title]="t('pl.flow.unplaced.title')">
+                  {{ t('pl.flow.unplaced', { count: f.unplacedReceived }) }}
+                </p>
+              }
+            </section>
+            }
+
+            <!-- Objets recus, par importance -->
+            <section class="part">
+              <h3>
+                {{ t('pl.byClass') }}
+                <span class="hl">{{ t('pl.count.copies', { count: classTotal() }) }}</span>
+                <span
+                  class="info"
+                  [title]="t('pl.byClass.title')"
+                  aria-hidden="true"
+                  ><svg class="ic"><use href="#i-info" /></svg></span
+                >
+              </h3>
+              @if (classBar().length) {
+                <span class="stack" role="img" [attr.aria-label]="classLabelAll()">
+                  @for (seg of classBar(); track seg.key) {
+                    <span [class]="seg.cls" [style.width.%]="seg.pct" [title]="seg.title"></span>
+                  }
+                </span>
+                <p class="nometer legend">
+                  @for (seg of classBar(); track seg.key) {
+                    <span class="lg">
+                      <span [class]="'icls ' + classOf(seg.key)" aria-hidden="true">{{ glyphOf(seg.key) }}</span>
+                      {{ seg.title }}
+                    </span>
+                  }
+                </p>
+              } @else {
+                <p class="nometer">{{ t('pl.byClass.none') }}</p>
+              }
+            </section>
+          </div>
+        </div>
+
+        <div class="parts">
+          <!-- Objets -->
+          <section class="part">
+            <h3>
+              {{ t('pl.items') }}
+              <span
+                class="info"
+                [title]="t('pl.items.info')"
+                aria-hidden="true"
+                ><svg class="ic"><use href="#i-info" /></svg></span
+              >
+              <span class="hl">
+                {{ t('pl.count.received', { count: tally().received }) }}
+                @if (tally().copies > tally().received) {
+                  <!-- Second decompte, pas une part du premier : jamais « dont ». -->
+                  <span
+                    class="muted"
+                    [title]="t('pl.inCopies.title')"
+                    >{{ t('pl.inCopies', { count: tally().copies }) }}</span
+                  >
+                }
+                @if (tally().hinted) {
+                  <span class="muted">· {{ t('pl.count.hints', { count: tally().hinted }) }}</span>
+                }
+              </span>
+            </h3>
+            <div class="filters">
+              <input
+                type="search"
+                [(ngModel)]="text"
+                [placeholder]="t('pl.items.filter')"
+                [attr.aria-label]="t('pl.items.filter.aria')"
+              />
+              <div class="segmented" role="group" [attr.aria-label]="t('pl.items.status')">
+                @for (f of statusFilters(); track f.key) {
+                  <button type="button" [class.on]="status() === f.key" [title]="t(f.title)" (click)="status.set(f.key)">
+                    {{ t(f.label) }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (catalogueMissing()) {
+              <p class="cap warn" [title]="t('pl.items.catalogue.title')">
+                {{ t('pl.catalogueMissing', { game: p.game }) }}
+              </p>
+            }
+            @if (view().truncated) {
+              <p class="cap">{{ t('pl.truncated', { matched: view().matched, limit: rowLimit }) }}</p>
+            }
+
+            <ul class="items">
+              @for (r of view().rows; track r.id) {
+                <li
+                  [class]="'st-' + r.status"
+                  [class.has-more]="r.sources.length > 1"
+                  (click)="toggleSources(r)"
+                >
+                  <span class="icls" [class]="'icls ' + classOf(r.cls)" [title]="classTitle(r.cls)" aria-hidden="true">{{
+                    glyphOf(r.cls)
+                  }}</span>
+                  <span class="iname" [class.unresolved]="r.unresolved" [title]="r.name">{{ r.name }}</span>
+                  @if (r.sources.length > 1) {
+                    <button
+                      type="button"
+                      class="icount toggle"
+                      [attr.aria-expanded]="isExpanded(r.id)"
+                      [title]="countTitle(r)"
+                    >
+                      x{{ r.sources.length }}
+                    </button>
+                  } @else {
+                    <span class="icount"></span>
+                  }
+                  <span class="istatus">
+                    @switch (r.status) {
+                      @case ('received') {
+                        <span
+                          class="tag t-received"
+                          [title]="r.lastTs !== null ? t('pl.tag.lastCopy', { time: time(r.lastTs) }) : ''"
+                          >{{ t('pl.tag.received') }}</span
+                        >
+                      }
+                      @case ('hinted') {
+                        <span class="tag t-hinted" [title]="t('pl.tag.hint.title')">{{ t('pl.tag.hint') }}</span>
+                      }
+                      @default {
+                        <span class="tag t-missing" [title]="t('pl.tag.notReceived.title')">{{ t('pl.tag.notReceived') }}</span>
+                      }
+                    }
+                  </span>
+                  @if (isExpanded(r.id)) {
+                    <span class="srcs">
+                      @for (s of r.sources; track $index) {
+                        <span class="pair">
+                          @if (s.playerName) {
+                            <span class="who-from">&larr; {{ s.playerName }}</span>
+                            <span class="iwhere" [class.unresolved]="s.unresolved">{{ s.locationName }}</span>
+                          } @else {
+                            <span class="iwhere">{{ t('pl.granted') }}</span>
+                          }
+                          <span class="when" [title]="s.approx ? t('pl.approxTime', { time: time(s.ts) }) : time(s.ts)"
+                            >{{ s.approx ? '~' : '' }}{{ stamp(s.ts) }}</span
+                          >
+                        </span>
+                      }
+                    </span>
+                  } @else if (r.sources.length) {
+                    <span class="pair" [title]="sourceTitle(r)">
+                      @if (r.sources[0].playerName) {
+                        <span class="who-from">&larr; {{ r.sources[0].playerName }}</span>
+                        <span class="iwhere" [class.unresolved]="r.sources[0].unresolved">{{
+                          r.sources[0].locationName
+                        }}</span>
+                      } @else {
+                        <span class="iwhere">{{ t('pl.granted') }}</span>
+                      }
+                    </span>
+                  }
+                </li>
+              } @empty {
+                <li class="empty">
+                  @if (text().trim() || status() !== 'all') {
+                    {{ t('pl.items.noMatch') }}
+                  } @else {
+                    {{ t('pl.items.none') }}
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+
+          <!-- Emplacements -->
+          <section class="part">
+            <h3>
+              {{ t('pl.locs') }}
+              <span class="info" [title]="locNote()" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
+              <span class="hl">
+                @if (locTally().ratio !== null) {
+                  {{ locTally().checked }} / {{ locTally().total }}
+                  <span class="muted">({{ (locTally().ratio! * 100).toFixed(1) }} %)</span>
+                } @else {
+                  {{ t('pl.count.checks', { count: locTally().checked }) }}
+                  <span class="muted">· {{ t('pl.totalUnknown') }}</span>
+                }
+              </span>
+            </h3>
+
+            <div class="filters">
+              <input
+                type="search"
+                [(ngModel)]="locText"
+                [placeholder]="t('pl.locs.filter')"
+                [attr.aria-label]="t('pl.locs.filter.aria')"
+              />
+              <div class="segmented" role="group" [attr.aria-label]="t('pl.locs.status')">
+                @for (f of locStatusFilters(); track f.key) {
+                  <button
+                    type="button"
+                    [class.on]="locStatus() === f.key"
+                    [title]="t(f.title)"
+                    (click)="locStatus.set(f.key)"
+                  >
+                    {{ t(f.label) }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (locCatalogueMissing()) {
+              <p class="cap warn" [title]="t('pl.locs.catalogue.title')">
+                {{ t('pl.catalogueMissing', { game: p.game }) }}
+              </p>
+            }
+            @if (locTally().countedNotNamed; as gap) {
+              <p class="cap warn" [title]="t('pl.locs.unnamed.title')">
+                {{ t('pl.locs.unnamed', { count: gap }) }}
+              </p>
+            }
+            @if (locView().truncated) {
+              <p class="cap">{{ t('pl.truncated', { matched: locView().matched, limit: rowLimit }) }}</p>
+            }
+
+            <ul class="items locs">
+              @for (r of locView().rows; track r.id) {
+                <li [class]="'st-' + r.status">
+                  <span class="iname" [class.unresolved]="r.unresolved" [title]="r.name">{{ r.name }}</span>
+                  <span class="istatus">
+                    @switch (r.status) {
+                      @case ('checked') {
+                        <span
+                          class="tag t-received"
+                          [title]="
+                            r.lastTs === null
+                              ? t('pl.check.noTime')
+                              : t(r.approx ? 'pl.check.approx' : 'pl.check.at', { time: time(r.lastTs) })
+                          "
+                          >{{ r.approx ? '~check' : 'check' }}</span
+                        >
+                      }
+                      @case ('hinted') {
+                        <span class="tag t-hinted" [title]="t('pl.locs.hint.title')"
+                          >{{ t('pl.tag.hint') }}</span
+                        >
+                      }
+                      @default {
+                        <span class="tag t-missing" [title]="t('pl.tag.notChecked.title')">{{ t('pl.tag.notChecked') }}</span>
+                      }
+                    }
+                  </span>
+                  @if (r.content; as c) {
+                    <span class="pair">
+                      <span class="who-to">&rarr; {{ c.dstName }}</span>
+                      <!-- `.ell` et non `.iwhere` : la teinte attenuee effacerait la couleur d'importance. -->
+                      <span
+                        class="ell"
+                        [class]="'ell ' + classOf(c.cls)"
+                        [class.unresolved]="c.itemUnresolved"
+                        [title]="classTitle(c.cls) + ' — ' + c.itemName"
+                        >{{ glyphOf(c.cls) }} {{ c.itemName }}</span
+                      >
+                    </span>
+                  } @else if (r.status === 'checked') {
+                    <!-- Check liste par le serveur seul : contenu inconnu, a ne pas rendre comme vide. -->
+                    <span class="pair">
+                      <span class="iwhere">{{ t('pl.contentUnknown') }}</span>
+                    </span>
+                  }
+                </li>
+              } @empty {
+                <li class="empty">
+                  @if (locText().trim() || locStatus() !== 'all') {
+                    {{ t('pl.locs.noMatch') }}
+                  } @else {
+                    {{ t('pl.locs.none') }}
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+
+          <!-- Ce qui sort de ce monde -->
+          <section class="part">
+            <h3>
+              {{ sendTitle() }}
+              <span
+                class="info"
+                [title]="t('pl.send.info')"
+                aria-hidden="true"
+                ><svg class="ic"><use href="#i-info" /></svg></span
+              >
+              <span class="hl">
+                {{ t('pl.count.sent', { count: sendTally().toOthers }) }}
+                @if (sendTally().toSelf) {
+                  <span
+                    class="muted"
+                    [title]="t('pl.toSelf.title')"
+                    >· {{ t('pl.toSelf', { count: sendTally().toSelf }) }}</span
+                  >
+                }
+                @if (sendTally().pending) {
+                  <span class="muted">· {{ t('pl.count.hints', { count: sendTally().pending }) }}</span>
+                }
+              </span>
+            </h3>
+            <div class="filters">
+              <input
+                type="search"
+                [(ngModel)]="sendText"
+                [placeholder]="t('pl.items.filter')"
+                [attr.aria-label]="t('pl.send.filter.aria')"
+              />
+              <div class="segmented" role="group" [attr.aria-label]="t('pl.send.status')">
+                @for (f of sendStatusFilters; track f.key) {
+                  <button
+                    type="button"
+                    [class.on]="sendStatus() === f.key"
+                    [title]="t(f.title)"
+                    (click)="sendStatus.set(f.key)"
+                  >
+                    {{ t(f.label) }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (sendCataloguesMissing().length) {
+              <p class="cap warn" [title]="t('pl.send.catalogues.title', { games: sendCataloguesMissing().join(', ') })">
+                {{ t('pl.send.catalogues', { count: sendCataloguesMissing().length }) }}
+              </p>
+            }
+            @if (sendTally().doneWithoutItem; as gap) {
+              <p class="cap warn" [title]="t('pl.send.undetailed.title')">
+                {{ t('pl.send.undetailed', { count: gap }) }}
+              </p>
+            }
+            @if (sendTally().pending && !ap.hintsFromServer()) {
+              <p class="cap warn" [title]="t('pl.send.hintsLow.title')">
+                {{ t('pl.send.hintsLow') }}
+              </p>
+            }
+            @if (sendView().truncated) {
+              <p class="cap">{{ t('pl.send.truncated', { matched: sendView().matched, limit: rowLimit }) }}</p>
+            }
+
+            <ul class="items sends">
+              @for (r of sendView().rows; track r.locationId) {
+                <li [class]="'st-' + r.status">
+                  <span
+                    class="icls"
+                    [class]="'icls ' + classOf(r.cls)"
+                    [title]="classTitle(r.cls)"
+                    aria-hidden="true"
+                    >{{ glyphOf(r.cls) }}</span
+                  >
+                  <span class="iname" [class.unresolved]="r.itemUnresolved" [title]="r.itemName">{{
+                    r.itemName
+                  }}</span>
+                  <span class="istatus">
+                    @if (r.status === 'sent') {
+                      <span
+                        class="tag t-received"
+                        [title]="t(r.approx ? 'pl.sent.approx' : 'pl.sent.at', { time: time(r.ts) })"
+                        >{{ r.approx ? '~' : '' }}{{ stamp(r.ts) }}</span
+                      >
+                    } @else {
+                      <span
+                        class="tag t-hinted"
+                        [title]="t('pl.send.hint.title', { time: time(r.ts) })"
+                        >{{ t('pl.tag.hint') }}</span
+                      >
+                    }
+                  </span>
+                  <span class="pair">
+                    <span class="who-to" [class.self]="r.toSelf">&rarr; {{ r.dstName }}</span>
+                    <span class="iwhere" [class.unresolved]="r.unresolved" [title]="r.name">{{ r.name }}</span>
+                  </span>
+                </li>
+              } @empty {
+                <li class="empty">
+                  @if (sendText().trim() || sendStatus() !== 'all') {
+                    {{ t('pl.send.noMatch') }}
+                  } @else {
+                    {{ t('pl.send.none') }}
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+        </div>
+
+      }
+    </section>
+  </div>
+}

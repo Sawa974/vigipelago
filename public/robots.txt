@@ -1,0 +1,3 @@
+# Vigipelago n'a rien a indexer : un outil personnel, sans contenu public.
+User-agent: *
+Disallow: /

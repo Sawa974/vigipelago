@@ -1,0 +1,613 @@
+/* Aucun jeton ici : une variable posee sur une feuille de composant echappe aux themes, en silence. */
+:host {
+  display: block;
+  min-height: 0;
+  /* Pleine hauteur : ce sont les panneaux qui defilent, pas la vue. */
+  height: 100%;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) 1fr;
+  height: 100%;
+  min-height: 0;
+}
+
+.roster {
+  border-right: 1px solid var(--border);
+  padding: 0.75rem;
+  background: var(--surface);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.roster h2,
+.detail h2 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 0.35rem;
+}
+
+.players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.8rem;
+}
+
+.prow {
+  display: grid;
+  grid-template-columns: 1rem 1fr auto;
+  align-items: baseline;
+  gap: 0.4rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.2rem 0.3rem;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.prow:hover {
+  background: var(--log-hover);
+}
+.players li.on .prow {
+  background: var(--accent-fill);
+  border-color: var(--accent-edge);
+}
+.players li.on .pname {
+  font-weight: 600;
+}
+
+.dot {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+.dot.tc {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pr-online {
+  color: var(--ok-text);
+}
+.pr-observer {
+  color: var(--c-cyan);
+}
+.pr-offline {
+  color: var(--log-ts);
+}
+.pr-unknown {
+  color: var(--warn-text);
+}
+.pr-none {
+  color: var(--border);
+}
+
+.players li.self .pname {
+  color: var(--accent);
+}
+.pgame {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 7rem;
+}
+
+/* Les listes defilent, pas le panneau : sinon les filtres sortent de l'ecran. */
+.detail {
+  padding: 0.9rem 1rem 1rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.detail.stale {
+  opacity: 0.75;
+}
+
+.who {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.who h2 {
+  font-size: 1.05rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+  margin: 0;
+}
+.badge {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--accent-fill);
+  border: 1px solid var(--accent-edge);
+  color: var(--accent);
+  vertical-align: middle;
+  margin-left: 0.4rem;
+}
+
+/* `minmax(0, 1fr)` et non `1fr` : sinon la colonne la plus chargee pousse la grille hors du panneau. */
+.parts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 1.2rem;
+  min-height: 0;
+  align-items: start;
+  flex: 1 1 auto;
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+  margin-top: 0.7rem;
+}
+
+.part {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  max-height: 100%;
+}
+.part + .part {
+  border-left: 1px solid var(--border);
+  padding-left: 1.2rem;
+  margin-left: -0.6rem;
+}
+
+.part h3 {
+  font-size: 0.8rem;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 0.2rem;
+}
+.hl {
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.78rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.nometer {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.meter {
+  display: block;
+  height: 6px;
+  margin: 0.15rem 0 0.35rem;
+  background: var(--grid);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.mfill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.sub {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0.2rem 0 0;
+  max-width: 62ch;
+  line-height: 1.45;
+}
+
+.chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-left: 0.4rem;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.6rem 0 0.4rem;
+}
+.filters input[type='search'] {
+  flex: 1 1 14rem;
+  min-width: 10rem;
+}
+
+/* Meme geometrie que les autres groupes segmentes : l'encapsulation oblige a la redire ici. */
+.segmented {
+  display: flex;
+}
+.segmented button {
+  border-radius: 0;
+  border-right-width: 0;
+}
+.segmented button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.segmented button:last-child {
+  border-radius: 0 4px 4px 0;
+  border-right-width: 1px;
+}
+.segmented button.on {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.tag {
+  padding: 0.05rem 0.4rem;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+.t-received {
+  color: var(--ok-text);
+  border-color: var(--ok-edge);
+  background: var(--ok-fill);
+}
+.t-hinted {
+  color: var(--warn-text);
+  border-color: var(--warn-edge);
+  background: var(--warn-fill);
+}
+.t-missing {
+  color: var(--muted);
+}
+
+.cap {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.cap.warn {
+  color: var(--warn-text);
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.82rem;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+.items li {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr 2.2rem 4.6rem;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.12rem 0.3rem;
+  border-radius: 3px;
+}
+.items.locs li {
+  grid-template-columns: 1fr 4.6rem;
+}
+.items.sends li {
+  grid-template-columns: 1.1rem minmax(0, 1fr) 3.6rem;
+}
+
+.pair {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+.items.locs .pair {
+  grid-column: 1 / -1;
+}
+.who-from,
+.who-to {
+  color: var(--text);
+  white-space: nowrap;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.who-to.self {
+  color: var(--accent);
+}
+/* `.iwhere` est declare apres les classes d'importance et les ecrase : ce qui garde sa teinte prend `.ell`. */
+.ell,
+.iwhere {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.iwhere {
+  color: var(--muted);
+}
+.iwhere.unresolved,
+.ell.unresolved {
+  font-family: var(--mono);
+}
+/* Reste un bouton (aria-expanded, focus clavier) mais ne se signale que par son focus. */
+.toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  /* Surtout pas `font: inherit` : il effacerait la taille et les chiffres tabulaires poses par `.icount`. */
+  font-family: inherit;
+  font-weight: inherit;
+  text-align: left;
+  cursor: inherit;
+  color: inherit;
+}
+.toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.srcs {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.srcs .pair {
+  border-left: 1px solid var(--border);
+  padding-left: 0.4rem;
+}
+.when {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.items li:hover {
+  background: var(--log-hover);
+}
+.items li.has-more {
+  cursor: pointer;
+}
+.items li.st-missing .iname {
+  color: var(--muted);
+}
+.items li.empty {
+  display: block;
+  text-align: center;
+  padding: 1.6rem 1rem;
+  max-width: 36rem;
+  margin: 0 auto;
+}
+.items li.empty:hover {
+  background: none;
+}
+
+.icls {
+  font-size: 0.7rem;
+  text-align: center;
+}
+.item-progression {
+  color: var(--class-progression);
+}
+.item-useful {
+  color: var(--class-useful);
+}
+.item-filler {
+  color: var(--class-filler-mark);
+}
+.item-trap {
+  color: var(--class-trap);
+}
+.item-unknown {
+  color: var(--log-ts);
+}
+
+.iname {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.iname.unresolved {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.icount {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+
+.istatus {
+  text-align: right;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 0.6rem 0.3rem;
+  display: block;
+}
+
+@media (max-width: 72rem) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+  /* En colonne, pas de defilements imbriques : c'est l'ensemble qui defile. */
+  .split {
+    grid-template-rows: auto auto;
+    overflow-y: auto;
+  }
+  .roster {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    overflow-y: visible;
+  }
+  .detail {
+    overflow-y: visible;
+  }
+  /* 72rem : une vingtaine de rem par liste pour qu'un nom reste lisible. */
+  .detail {
+    display: block;
+    overflow-y: auto;
+  }
+  .parts {
+    grid-template-columns: 1fr;
+  }
+  .part + .part {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    margin-left: 0;
+    padding-top: 0.8rem;
+    margin-top: 0.8rem;
+  }
+  .items {
+    max-height: 60vh;
+  }
+  .pband {
+    display: block;
+  }
+  .pstats {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 0.6rem;
+  }
+}
+
+.pband {
+  flex: 0 0 auto;
+  display: flex;
+  margin-bottom: 0.7rem;
+}
+
+.tiles {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.2rem 1.2rem;
+  margin: 0.1rem 0 0;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tile + .tile {
+  border-left: 1px solid var(--border);
+  padding-left: 1.2rem;
+}
+/* Chiffres proportionnels a cette taille : `tabular-nums` distendrait une valeur courte. */
+.tval {
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text);
+}
+.tile.warn .tval {
+  color: var(--warn-text);
+}
+.tcap {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.tdet {
+  margin-top: 0.15rem;
+}
+
+.pstats {
+  flex: 3;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 1.2rem;
+  border-left: 1px solid var(--border);
+  padding-left: 1.2rem;
+}
+
+.stack {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 0.15rem 0 0.3rem;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--muted) 45%, transparent);
+}
+.cseg {
+  min-width: 2px;
+}
+.c-progression {
+  background: var(--class-progression);
+}
+.c-useful {
+  background: var(--class-useful);
+}
+.c-filler {
+  background: var(--class-filler);
+}
+.c-trap {
+  background: var(--class-trap);
+}
+.c-unknown {
+  background: var(--muted);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.6rem;
+}
+.lg {
+  white-space: nowrap;
+}
+
+.flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.flow li {
+  display: grid;
+  grid-template-columns: minmax(0, 10ch) 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+.fname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fval {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}

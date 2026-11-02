@@ -1,0 +1,15 @@
+# Aucune liste de fichiers quand une page manque.
+Options -Indexes
+
+# index.html et les langues toujours revalides : ils changent sous un meme nom a chaque build.
+# Les fichiers hashes du build ne changent jamais sous un meme nom : cache long.
+<IfModule mod_headers.c>
+  # Aucun fichier du site dans les moteurs de recherche, page ou non.
+  Header set X-Robots-Tag "noindex, nofollow"
+  <FilesMatch "(^index\.html|\.json)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "-[A-Z0-9]{8}\.(js|css)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>

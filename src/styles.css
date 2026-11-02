@@ -1,0 +1,305 @@
+:root,
+/* .theme-scope = apercu du dialogue des themes : chaque theme double son selecteur, et tout jeton qu'il surcharge doit exister ici, sinon l'apercu herite du theme applique. */
+.theme-scope {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+  --mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+
+  /* Importance des objets : source unique pour la console et les graphiques. */
+  --class-progression: #9085e9;
+  --class-useful: #199e70;
+  --class-trap: #d95926;
+  /* Banal en deux valeurs : --class-filler pour le texte (4.5:1), --class-filler-mark pour les aplats, qu'un gris ferait lire comme du vide. */
+  --class-filler: #8b949e;
+  --class-filler-mark: #4d6a9a;
+
+  --ok: #2ea043;
+  --ok-text: #7ee787;
+  --warn: #bb8009;
+  --warn-text: #e3b341;
+  --bad: #f85149;
+  --bad-text: #ff7b72;
+  --ok-fill: color-mix(in srgb, var(--ok) 13.3%, transparent);
+  --ok-edge: color-mix(in srgb, var(--ok) 40%, transparent);
+  --warn-fill: color-mix(in srgb, var(--warn) 13.3%, transparent);
+  --warn-edge: color-mix(in srgb, var(--warn) 40%, transparent);
+  --warn-edge-strong: color-mix(in srgb, var(--warn-text) 40%, transparent);
+  --warn-wash: color-mix(in srgb, var(--warn-text) 5.9%, transparent);
+  --bad-fill: color-mix(in srgb, var(--bad) 13.3%, transparent);
+  --bad-edge: color-mix(in srgb, var(--bad) 40%, transparent);
+  --accent-fill: color-mix(in srgb, var(--accent) 7.8%, transparent);
+  --accent-edge: color-mix(in srgb, var(--accent) 26.7%, transparent);
+
+  /* Les huit couleurs nommees par le protocole : un theme ne les repeint pas, seule la polarite les change. */
+  --c-red: #ff7b72;
+  --c-green: #7ee787;
+  --c-yellow: #e3b341;
+  --c-blue: #79c0ff;
+  --c-magenta: #d2a8ff;
+  --c-cyan: #56d4dd;
+  --c-white: #f0f6fc;
+  --c-black: #6e7681;
+
+  --log-ts: #6e7681;
+  --log-location: var(--c-green);
+  --log-entrance: var(--c-cyan);
+  --log-player-self: var(--c-magenta);
+  --log-player-other: var(--c-yellow);
+  --log-part: #ffa198;
+  --log-hover: color-mix(in srgb, var(--text) 3.1%, transparent);
+
+  --on-accent: #05070a;
+
+  --field: #0d1117;
+  --btn: #21262d;
+  --btn-hover: #30363d;
+
+  /* Chrome et palette des graphiques vivent ici et non dans .viz : une variable posee sur .viz bat toute surcharge de theme. */
+  --grid: #21262d;
+
+  /* Huit teintes attribuees dans cet ordre fixe, jamais cyclees. */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  --state-online: #199e70;
+  --state-observer: #3987e5;
+  --state-offline: #3d444d;
+  --state-unknown: #c98500;
+
+  --axis-text: var(--muted);
+  --plot-bg: var(--bg);
+  --nodata: var(--surface);
+  --nodata-edge: var(--border);
+
+  color-scheme: dark;
+}
+
+/* Un theme ne redefinit que le decor, jamais les couleurs de sens, et change la teinte du fond, jamais sa clarte : les contrastes valides en dependent. */
+:root[data-theme='foret-or'],
+.theme-scope[data-theme='foret-or'] {
+  --bg: #0b1210;
+  --surface: #121b16;
+  --border: #3d3524;
+  --text: #e9efe6;
+  --muted: #93a290;
+  --accent: #d8b44a;
+  --on-accent: #0b1210;
+  --field: #0b1210;
+  --btn: #1b2720;
+  --btn-hover: #27362c;
+  --grid: #1e2b23;
+}
+
+:root[data-theme='brique-cuivre'],
+.theme-scope[data-theme='brique-cuivre'] {
+  --bg: #120c0a;
+  --surface: #1c1310;
+  --border: #46352a;
+  --text: #f0e6e0;
+  --muted: #a89490;
+  --accent: #c97b4a;
+  --on-accent: #120c0a;
+  --field: #120c0a;
+  --btn: #261913;
+  --btn-hover: #33231b;
+  --grid: #2a1d17;
+}
+
+:root[data-theme='encre-magenta'],
+.theme-scope[data-theme='encre-magenta'] {
+  --bg: #0b0e18;
+  --surface: #131829;
+  --border: #2c3450;
+  --text: #e4e8f5;
+  --muted: #8f97b5;
+  --accent: #c58fd8;
+  --on-accent: #0b0e18;
+  --field: #0b0e18;
+  --btn: #1a2036;
+  --btn-hover: #252d48;
+  --grid: #1e2540;
+}
+
+/* Couleurs de sens pour fond clair, partagees par tous les themes clairs ; valeurs mesurees par `python tools/contrast.py` (texte 4.5:1, aplats 3:1). */
+:root[data-polarite='claire'],
+.theme-scope[data-polarite='claire'] {
+  color-scheme: light;
+
+  --class-progression: #5b4fc4;
+  --class-useful: #0f7a55;
+  --class-trap: #b8431a;
+  --class-filler: #5f6b78;
+  --class-filler-mark: #6b86b5;
+
+  /* `white` et `black` nomment les extremes de contraste d'un terminal, d'ou leur inversion sur clair. */
+  --c-red: #c3352b;
+  --c-green: #17794f;
+  --c-yellow: #8a6200;
+  --c-blue: #1a5fb4;
+  --c-magenta: #8b3fa8;
+  --c-cyan: #0f6d75;
+  --c-white: #101418;
+  --c-black: #5f6a76;
+
+  --log-ts: #5f6a76;
+  --log-part: #b04a42;
+
+  /* `--bad` sert aussi de couleur de texte (bouton destructeur) : il doit tenir 4.5:1. */
+  --ok: #1a8a5a;
+  --ok-text: #146b45;
+  --warn: #b8820a;
+  --warn-text: #8a6200;
+  --bad: #c3352b;
+  --bad-text: #a82a22;
+
+  --series-4: #b07800;
+  --state-unknown: #b07800;
+  --series-7: #8579e2;
+  --series-8: #d75353;
+  --state-offline: #aeb6c0;
+}
+
+:root[data-theme='mario'],
+.theme-scope[data-theme='mario'] {
+  --bg: #0b1020;
+  --surface: #131a2e;
+  --border: #4c2f35;
+  --text: #e8ecf6;
+  --muted: #8d97b0;
+  --accent: #fb4b4b;
+  --on-accent: #0b1020;
+  --field: #0b1020;
+  --btn: #1a2138;
+  --btn-hover: #262f4a;
+  --grid: #1d2540;
+}
+
+:root[data-theme='creme-azur'],
+.theme-scope[data-theme='creme-azur'] {
+  --bg: #fff0dd;
+  --surface: #fff8ec;
+  --border: #e3bb5c;
+  --text: #2b2318;
+  --muted: #6b5c46;
+  --accent: #1668a8;
+  --on-accent: #ffffff;
+  --field: #fffaf2;
+  --btn: #fdf4e6;
+  --btn-hover: #fbeedb;
+  --grid: #9adaf6;
+}
+
+:root[data-theme='mario-feu'],
+.theme-scope[data-theme='mario-feu'] {
+  --bg: #fbf8f6;
+  --surface: #ffffff;
+  --border: #d6c5bc;
+  --text: #1a1512;
+  --muted: #6b5f58;
+  --accent: #c62828;
+  --on-accent: #ffffff;
+  --field: #ffffff;
+  --btn: #f3ece8;
+  --btn-hover: #ebe1db;
+  --grid: #efe7e2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Servie depuis `public/fonts` et non par Google : l'outil ne depend d'aucun tiers. */
+@font-face {
+  font-family: 'IM Fell English SC';
+  src: url('./fonts/im-fell-english-sc.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+.brand-font {
+  font-family: 'IM Fell English SC', Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+:root {
+  accent-color: var(--accent);
+}
+
+input,
+select,
+button {
+  background: var(--field);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+/* `:focus-visible` et non `:focus`, sinon un clic laisse un cadre. */
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+select,
+button {
+  cursor: pointer;
+  background: var(--btn);
+}
+select:hover:not(:disabled),
+button:hover:not(:disabled) {
+  background: var(--btn-hover);
+}
+select:disabled,
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Globale : utilisee par deux onglets, une feuille de composant ne l'atteindrait pas (echec silencieux). */
+.ic {
+  width: 1em;
+  height: 1em;
+}
+
+/* Globale : une feuille de composant encapsulee n'atteint pas `::backdrop` de facon garantie. */
+dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+/* Globale : utilisee par Joueurs et Statistiques, une feuille de composant ne l'atteindrait pas. */
+.info {
+  font-size: 0.7rem;
+  color: var(--muted);
+  cursor: help;
+  margin-left: 0.25rem;
+  vertical-align: super;
+}

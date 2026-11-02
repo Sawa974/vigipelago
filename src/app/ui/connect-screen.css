@@ -1,0 +1,268 @@
+/* `--danger` est local, donc hors de portee des themes. */
+:host {
+  --danger: var(--bad);
+  display: block;
+  overflow-y: auto;
+  height: 100%;
+  padding: 3rem 1rem 4rem;
+}
+
+.connect {
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.head h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--accent);
+}
+
+.tag {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.sec {
+  margin: 2.25rem 0 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.row.open {
+  border-color: var(--accent);
+}
+
+.main {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Sans bordure ni marge interne, l'anneau global a -1px tomberait sur le texte. */
+.main:focus-visible {
+  outline-width: 1px;
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.main:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.slot {
+  color: var(--text);
+}
+
+.room {
+  font-family: var(--mono);
+}
+
+.dot {
+  opacity: 0.5;
+}
+
+.acts {
+  grid-column: 2;
+  display: flex;
+  gap: 0.3rem;
+}
+
+.acts button {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+button.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+button.ghost {
+  color: var(--muted);
+}
+
+.resume,
+.edit,
+.confirm {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+}
+
+.resume {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.resume label {
+  flex: 1 1 14rem;
+}
+
+.edit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.6rem;
+  align-items: end;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.go {
+  padding: 0.35rem 0.9rem;
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.go:disabled {
+  opacity: 0.5;
+}
+
+.editacts,
+.addacts {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.confirm .warn {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--danger);
+}
+
+.tally {
+  margin: 0 0 0.5rem;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  margin: 0 0 0.6rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.add {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.7rem;
+  padding: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.add .wide {
+  grid-column: 1 / -1;
+}
+
+.addlink {
+  margin-top: 2.25rem;
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  width: 100%;
+  padding: 0.55rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.addlink:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.error,
+.note {
+  margin: 1rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.error {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.note {
+  color: var(--muted);
+}
+
+.foot {
+  margin-top: 2.5rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted);
+}

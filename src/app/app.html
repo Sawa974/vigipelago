@@ -1,0 +1,372 @@
+<!-- Sprite ici et non dans un onglet : un id SVG se resout sur le document. Taille nulle et non display:none, qui casse les references. -->
+<svg aria-hidden="true" style="position: absolute; width: 0; height: 0; overflow: hidden">
+  <symbol
+    id="i-cup"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M7 3.8h10v5.4a5 5 0 0 1-10 0V3.8Z" />
+    <path d="M7 5.2H4.3a2.6 2.6 0 0 0 2.9 4.2" />
+    <path d="M17 5.2h2.7a2.6 2.6 0 0 1-2.9 4.2" />
+    <path d="M12 14.3v2.4" />
+    <path d="M9.6 16.7h4.8l.7 3.5H8.9l.7-3.5Z" />
+  </symbol>
+  <symbol
+    id="i-info"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11.2v5" />
+    <path d="M12 7.6h.01" />
+  </symbol>
+</svg>
+
+<header class="bar">
+  <span class="brand brand-font">{{ t('app.name') }}</span>
+
+  @if (!showConnect()) {
+    @if (activeLabel()) {
+      <!-- Ni hote ni port a l'ecran (stream). -->
+      <span class="active" [title]="ap.roomId() ?? ''">{{ activeLabel() }}</span>
+    }
+    <span class="status" [class]="'st-' + ap.state()">{{ stateLabel() }}</span>
+    @if (!offline()) {
+      <button
+        type="button"
+        class="icon"
+        (click)="sweepNow()"
+        [title]="t('bar.sweep.title')"
+        [attr.aria-label]="t('bar.sweep')"
+      >
+        <span aria-hidden="true">&#10227;</span>
+      </button>
+    }
+  }
+
+  <span class="spacer"></span>
+
+  <div class="menu-wrap">
+    <button
+      type="button"
+      class="burger"
+      (click)="menuOpen.set(!menuOpen())"
+      aria-haspopup="menu"
+      [attr.aria-expanded]="menuOpen()"
+      [attr.aria-label]="t('menu.label')"
+      [title]="t('menu.label')"
+    >
+      <span aria-hidden="true">&#9776;</span>
+    </button>
+    @if (menuOpen()) {
+      <ul class="menu" role="menu">
+        @if (!showConnect()) {
+          <li role="none"><button type="button" role="menuitem" (click)="openMenuItem('export')">{{ t('menu.export') }}</button></li>
+        }
+        <li role="none">
+          <button type="button" role="menuitem" (click)="openMenuItem('import')" [disabled]="archiveBusy()">{{ t('menu.import') }}</button>
+        </li>
+        @if (!showConnect()) {
+          <li role="none"><button type="button" role="menuitem" (click)="openMenuItem('info')">{{ t('menu.info') }}</button></li>
+        }
+        <li role="separator"></li>
+        <li role="none"><button type="button" role="menuitem" (click)="openMenuItem('theme')">{{ t('menu.theme') }}</button></li>
+        <li role="none"><button type="button" role="menuitem" (click)="openMenuItem('language')">{{ t('menu.language') }}</button></li>
+        @if (!showConnect()) {
+          <li role="separator"></li>
+          <li role="none">
+            <button type="button" role="menuitem" (click)="menuOpen.set(false); disconnect()">
+              {{ offline() ? t('menu.closeGame') : t('menu.disconnect') }}
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</header>
+
+<app-dialog [heading]="t('export.title')" [open]="dialog() === 'export'" (closed)="dialog.set(null)"
+            [confirmLabel]="t('export.confirm')" (confirmed)="doExport()">
+  @if (activeLabel()) {
+    <p class="export-of">{{ activeLabel() }}</p>
+  }
+  <div class="modes" role="radiogroup" [attr.aria-label]="t('export.contents')">
+    <label [class.on]="exportMode() === 'full'">
+      <input type="radio" name="exportMode" value="full"
+             [checked]="exportMode() === 'full'" (change)="exportMode.set('full')" />
+      <span>
+        <strong>{{ t('export.full') }}</strong>
+        <small>{{ t('export.full.hint') }}</small>
+      </span>
+    </label>
+    <label [class.on]="exportMode() === 'light'">
+      <input type="radio" name="exportMode" value="light"
+             [checked]="exportMode() === 'light'" (change)="exportMode.set('light')" />
+      <span>
+        <strong>{{ t('export.light') }}</strong>
+        <small>{{ t('export.light.hint') }}</small>
+      </span>
+    </label>
+  </div>
+</app-dialog>
+
+<app-dialog [heading]="t('info.title')" [open]="dialog() === 'info'" (closed)="dialog.set(null)">
+  @if (info(); as i) {
+    <div class="split-view">
+      <div>
+        <p class="room-name">{{ activeLabel() || i.room.roomId }}</p>
+        <dl class="cov facts">
+          <dt>{{ t('info.seed') }}</dt>
+          <dd>{{ i.room.seedName }}</dd>
+          <dt>{{ t('fact.created') }}</dt>
+          <dd>{{ i.room.createdAt !== null ? datetime(i.room.createdAt) : t('common.unknown') }}</dd>
+          <dt>{{ t('fact.players') }}</dt>
+          <dd>{{ i.room.players.length }} — {{ t('count.games', { count: i.games }) }}</dd>
+        </dl>
+        <h3 class="done">{{ t('info.rules') }}</h3>
+        <dl class="cov facts">
+          <dt>{{ t('info.release') }}</dt>
+          <dd>{{ permission(i.room, 'release') }}</dd>
+          <dt>{{ t('info.collect') }}</dt>
+          <dd>{{ permission(i.room, 'collect') }}</dd>
+          <dt>{{ t('info.remaining') }}</dt>
+          <dd>{{ permission(i.room, 'remaining') }}</dd>
+          <dt>{{ t('info.race') }}</dt>
+          <dd>{{ yesNo(i.room.raceMode, 'info.race.on', 'info.race.off') }}</dd>
+          <dt>{{ t('info.hintCost') }}</dt>
+          <dd>{{ i.room.hintCost !== null ? t('info.hintCost.value', { pct: i.room.hintCost }) : t('common.unknown') }}</dd>
+          <dt>{{ t('info.checkPoints') }}</dt>
+          <dd>{{ i.room.locationCheckPoints ?? t('common.unknown') }}</dd>
+          <dt>{{ t('info.password') }}</dt>
+          <dd>{{ yesNo(i.room.password, 'info.password.yes', 'info.password.no') }}</dd>
+        </dl>
+        <h3 class="done">{{ t('info.server') }}</h3>
+        <dl class="cov facts">
+          <dt>{{ t('info.serverVersion') }}</dt>
+          <dd>{{ i.room.serverVersion ?? t('common.unknown') }}</dd>
+          <dt>{{ t('info.generated') }}</dt>
+          <dd>{{ i.room.generatorVersion ? 'Archipelago ' + i.room.generatorVersion : t('common.unknown') }}</dd>
+          <dt>{{ t('info.recorded') }}</dt>
+          <dd>{{ ap.eventCount() }}</dd>
+          <dt>{{ t('fact.listened') }}</dt>
+          <dd>{{ t('count.sessions', { count: i.sessions, duration: durationLabel(i.coveredMs) }) }}</dd>
+        </dl>
+      </div>
+      <div class="slots">
+        <p class="slots-head">{{ t('fact.slots', { count: i.room.players.length }) }}</p>
+        <ul>
+          @for (p of i.room.players; track p.slot) {
+            <li>
+              <span>
+                {{ p.name }}
+                @if (i.goals.has(p.slot)) {
+                  <svg class="ic" [attr.aria-label]="t('info.goal')"><title>{{ t('info.goal') }}</title><use href="#i-cup" /></svg>
+                }
+              </span>
+              <span class="muted">{{ p.game }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  } @else if (infoReady()) {
+    <p class="muted">{{ t('info.notRecorded') }}</p>
+  }
+</app-dialog>
+
+<app-theme-dialog [open]="dialog() === 'theme'" (closed)="dialog.set(null)" />
+<app-language-dialog [open]="dialog() === 'language'" (closed)="dialog.set(null)" />
+
+@if (!showConnect()) {
+  <nav class="tabs" role="tablist" [attr.aria-label]="t('tabs.label')">
+    @for (tb of tabs; track tb.key) {
+      <button
+        type="button"
+        role="tab"
+        class="tab"
+        [id]="'tab-' + tb.key"
+        [class.on]="tab() === tb.key"
+        [attr.aria-selected]="tab() === tb.key"
+        [attr.aria-controls]="'panel-' + tb.key"
+        [attr.tabindex]="tab() === tb.key ? 0 : -1"
+        (click)="tab.set(tb.key)"
+        (keydown)="onTabKey($event)"
+      >
+        {{ t(tb.label) }}
+      </button>
+    }
+  </nav>
+}
+
+@if (ap.lastError() && !showConnect() && !offline()) {
+  <p class="error" role="alert">{{ t('bar.error', { error: ap.lastError() }) }}</p>
+}
+
+@if (archiveNote() && dialog() !== 'import') {
+  <p class="note">{{ archiveNote() }}</p>
+}
+
+<app-dialog [heading]="t('import.title')" [open]="dialog() === 'import'" (closed)="closeImport()">
+  @if (importReport() === null) {
+    <label
+      class="drop"
+      [class.over]="dragOver()"
+      [class.small]="fileName() !== null"
+      [class.off]="archiveBusy()"
+      (dragover)="onDragOver($event)"
+      (dragleave)="dragOver.set(false)"
+      (drop)="onDrop($event)"
+    >
+      {{ fileName() === null ? t('import.drop') : t('import.dropAgain') }}
+      <input
+        type="file"
+        class="sr"
+        accept=".ndjson,.jsonl,application/x-ndjson"
+        (change)="onArchiveFile($event)"
+        [disabled]="archiveBusy()"
+      />
+    </label>
+  }
+
+  @if (fileReasons().length) {
+    <ul class="reasons">
+      @for (r of fileReasons(); track r) {
+        <li>{{ r }}</li>
+      }
+    </ul>
+  }
+
+  @if (fileSummary(); as f) {
+    @for (r of f.rooms; track r.roomId) {
+      <div class="split-view">
+        <div>
+          <p class="room-name">{{ r.label || r.roomId }}</p>
+          <p class="match" [class]="'match ' + roomMatch(r.roomId).cls">{{ t(roomMatch(r.roomId).key) }}</p>
+          <dl class="cov facts">
+            <dt>{{ t('fact.created') }}</dt>
+            <dd>{{ r.createdAt !== null ? datetime(r.createdAt) : t('common.unknown') }}</dd>
+            <dt>{{ t('fact.players') }}</dt>
+            <dd>{{ r.players }} — {{ t('count.games', { count: r.games }) }}</dd>
+            @if (f.firstEventAt !== null) {
+              <dt>{{ t('fact.period') }}</dt>
+              <dd>{{ datetime(f.firstEventAt) }} → {{ datetime(f.lastEventAt!) }}</dd>
+            }
+            <dt>{{ t('fact.listened') }}</dt>
+            <dd>{{ durationLabel(f.coveredMs) }}</dd>
+            <dt>{{ t('fact.events') }}</dt>
+            <dd>{{ f.events }}</dd>
+            <dt>{{ t('fact.exported') }}</dt>
+            <dd>{{ datetime(f.header.exportedAt) }} — {{ f.header.mode === 'light' ? t('fact.mode.light') : t('fact.mode.full') }}</dd>
+          </dl>
+        </div>
+        <div class="slots">
+          <p class="slots-head">{{ t('fact.slots', { count: r.slots.length }) }}</p>
+          <ul>
+            @for (s of r.slots; track s.slot) {
+              <li><span>{{ s.name }}</span> <span class="muted">{{ s.game }}</span></li>
+            } @empty {
+              <li class="muted">{{ t('common.none') }}</li>
+            }
+          </ul>
+        </div>
+      </div>
+    }
+
+    @if (f.problems.length) {
+      <details class="problems">
+        <summary>{{ t('import.problems', { count: f.problems.length }) }}</summary>
+        <ul>
+          @for (p of f.problems.slice(0, 50); track p.line) {
+            <li [class.warn]="p.kind === 'error'">{{ t('import.problemLine', { line: p.line, message: t(p.key, p.params) }) }}</li>
+          }
+        </ul>
+      </details>
+    }
+
+    @if (canImport()) {
+      <p class="actions">
+        <button type="button" class="primary" (click)="doImport()" [disabled]="archiveBusy()">
+          {{ t('import.run') }}
+        </button>
+        <span class="legend">{{ t('import.safe') }}</span>
+      </p>
+    }
+  }
+
+  @if (archiveNote() && dialog() === 'import') {
+    <p class="reasons">{{ archiveNote() }}</p>
+  }
+
+  @if (importReport(); as r) {
+    <h3 class="done">{{ t('import.merged') }}</h3>
+    <dl class="cov facts">
+      <dt>{{ t('import.added') }}</dt>
+      <dd [class.warn]="r.counts.created > 0">{{ r.counts.created }}</dd>
+      <dt>{{ t('import.redated') }}</dt>
+      <dd [class.warn]="r.counts.replaced > 0">{{ r.counts.replaced }}</dd>
+      <dt>{{ t('import.known') }}</dt>
+      <dd class="muted">{{ r.counts.known }}</dd>
+      @if (r.counts.conflicts > 0) {
+        <dt>{{ t('import.conflicts') }}</dt>
+        <dd class="warn" [title]="t('import.conflicts.title')">
+          {{ r.counts.conflicts }}
+        </dd>
+      }
+      <dt>{{ t('import.gained') }}</dt>
+      <dd [class.warn]="r.coverageGainedMs > 0">{{ durationLabel(r.coverageGainedMs) }}</dd>
+      <dt>{{ t('import.offset') }}</dt>
+      <dd>{{ offsetLabel(r) }}</dd>
+    </dl>
+  }
+
+  @if (addedProfiles().length) {
+    <h3 class="done">{{ t('import.addedTitle') }}</h3>
+    <p class="legend">{{ t('import.addedLegend') }}</p>
+    @for (p of addedProfiles(); track p.id) {
+      <div class="slotfix">
+        <span class="who">{{ profileLabel(p) }}</span>
+        <label>
+          {{ t('import.slot') }}
+          <input type="text" [value]="slotValue(p)" (input)="onSlotDraft(p, $event)"
+                 (keydown.enter)="$event.preventDefault(); saveAddedSlot(p)" />
+        </label>
+        <button type="button" (click)="saveAddedSlot(p)" [disabled]="archiveBusy()">{{ t('import.save') }}</button>
+      </div>
+    }
+    @if (slotNote()) {
+      <p class="legend">{{ slotNote() }}</p>
+    }
+  }
+</app-dialog>
+
+<main
+  [class.full]="tab() === 'stats' || showConnect()"
+  [attr.id]="showConnect() ? null : 'panel-' + tab()"
+  [attr.role]="showConnect() ? null : 'tabpanel'"
+  [attr.aria-labelledby]="showConnect() ? null : 'tab-' + tab()"
+>
+  @if (showConnect()) {
+    <app-connect-screen
+      [busy]="ap.state() === 'connecting' || ap.state() === 'handshake'"
+      [connectError]="connectError()"
+      (submitted)="onConnectRequest($event)"
+      (exportAsked)="onExportProfile($event)"
+      (browseAsked)="onBrowseProfile($event)"
+    />
+  } @else if (tab() === 'stats') {
+    <app-dashboard />
+  } @else if (tab() === 'players') {
+    <app-players />
+  } @else {
+
+  <app-console />
+  }
+</main>

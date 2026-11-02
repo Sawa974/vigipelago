@@ -1,0 +1,95 @@
+  @if (offline()) {
+    <div class="offline-pane" role="status">
+      <p class="otitle">{{ t('console.offline.title') }}</p>
+      <!-- Jamais `ap.detail()` : il contient l'URL, et l'ecran peut etre en stream. -->
+      @if (ap.browseOnly()) {
+        <p class="omsg">{{ t('console.offline.browse') }}</p>
+      } @else {
+        <p class="omsg">{{ offlineReason() }}</p>
+      }
+      <p class="ohint">{{ t('console.offline.hint') }}</p>
+      @if (!ap.browseOnly()) {
+        <button type="button" class="go" (click)="reconnect()" [disabled]="busy()">
+          {{ busy() ? t('console.retrying') : t('console.reconnect') }}
+        </button>
+        <label class="chk" [title]="t('console.autoRetry.title')">
+          <input type="checkbox" [checked]="ap.autoRetry()" (change)="toggleAutoRetry($event)" />
+          {{ t('console.autoRetry') }}
+        </label>
+      }
+    </div>
+  } @else {
+  <div class="toolbar">
+    <input type="search" [(ngModel)]="filter" [placeholder]="t('console.filter')" />
+    <label class="chk">
+      <input type="checkbox" [(ngModel)]="autoScroll" /> {{ t('console.autoScroll') }}
+    </label>
+    @if (searching()) {
+      <span class="muted">{{ t('console.searching') }}</span>
+    }
+  </div>
+
+  @if (feedTruncated()) {
+    <p class="cap">{{ t('console.feedCap', { limit: feedLimit }) }}</p>
+  }
+  @if (searchTruncated()) {
+    <p class="cap">{{ t('console.searchCap', { limit: searchLimit }) }}</p>
+  }
+
+  <div #console class="console" (scroll)="onScroll(console)">
+    @for (ev of displayedEvents(); track ev.dedupKey) {
+      <div class="line" [class]="'k-' + ev.kind" [class.approx]="ev.tsPrecision === 'approx'">
+        <span
+          class="ts"
+          [title]="
+            ev.tsPrecision === 'approx'
+              ? t('console.approxTime', { from: time(ev.tsLower!), to: time(ev.tsUpper!) })
+              : ''
+          "
+          >{{ ev.tsPrecision === 'approx' ? '~' + time(ev.ts) : time(ev.ts) }}</span
+        >
+        <span class="kind">{{ kindLabel(ev.kind) }}</span>
+        <span class="msg">
+          @for (seg of ev.segments; track $index) {
+            <span [class]="'seg ' + seg.cls" [title]="seg.title ?? ''">{{ seg.text }}</span>
+          }
+        </span>
+      </div>
+    } @empty {
+      @if (filter().trim()) {
+        <!-- La recherche va en base : ce message vaut pour toute la partie, pas pour les lignes affichees. -->
+        <div class="empty">{{ t('console.noMatch', { filter: filter() }) }}</div>
+      } @else {
+        <div class="empty">{{ t('console.empty') }}</div>
+      }
+    }
+  </div>
+
+  <!-- `Say` porte chat et commandes : le serveur intercepte les lignes en « ! ». -->
+  <form class="say" (ngSubmit)="submitLine()">
+    <input
+      type="text"
+      name="line"
+      [(ngModel)]="input"
+      [disabled]="!connected()"
+      [placeholder]="connected() ? t('console.say.placeholder') : t('console.say.offline')"
+      autocomplete="off"
+    />
+    <button type="submit" class="go" [disabled]="!connected() || !input().trim()">{{ t('console.send') }}</button>
+  </form>
+
+  @if (inputRefusal(); as r) {
+    <p class="sayrefuse" role="alert">{{ r }}</p>
+  }
+
+  @if (pendingWarning(); as w) {
+    <div class="sayconfirm" role="alertdialog">
+      <p class="warn">{{ w }}</p>
+      <p class="line"><code>{{ input() }}</code></p>
+      <div class="sayacts">
+        <button type="button" class="danger" (click)="sendLine()">{{ t('console.sendAnyway') }}</button>
+        <button type="button" class="ghost" (click)="cancelLine()">{{ t('common.cancel') }}</button>
+      </div>
+    </div>
+  }
+  }

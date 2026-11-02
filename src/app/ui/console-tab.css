@@ -1,0 +1,286 @@
+/* Aucun jeton ici : une variable posee sur une feuille de composant echappe aux themes, en silence. */
+
+
+.cap {
+  margin: 0;
+  padding: 0.3rem 0.75rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  border-bottom: 1px solid var(--border);
+}
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+.toolbar input[type='search'] {
+  width: 20rem;
+}
+.chk {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--muted);
+}
+
+.console {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.line {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.05rem 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.line:hover {
+  background: var(--log-hover);
+}
+
+.ts {
+  color: var(--log-ts);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.line.approx {
+  background: var(--warn-wash);
+  border-left: 2px solid var(--warn);
+  margin-left: -0.75rem;
+  padding-left: calc(0.75rem - 2px);
+}
+.line.approx .ts {
+  color: var(--warn-text);
+  cursor: help;
+}
+.seg.approx-mark {
+  color: var(--warn-text);
+  font-weight: 700;
+}
+.seg.approx-note {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+.kind {
+  flex: none;
+  width: 5.5rem;
+  color: var(--log-ts);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 0.12rem;
+}
+.k-item .kind {
+  color: var(--accent);
+}
+.k-hint .kind {
+  color: var(--c-magenta);
+}
+.k-join .kind {
+  color: var(--ok-text);
+}
+.k-part .kind {
+  color: var(--log-part);
+}
+.k-goal .kind,
+.k-release .kind,
+.k-collect .kind {
+  color: var(--warn-text);
+}
+
+.msg {
+  flex: 1;
+}
+
+.seg.player-self {
+  color: var(--c-magenta);
+  font-weight: 600;
+}
+.seg.player-other {
+  color: var(--warn-text);
+}
+.seg.item-progression {
+  color: var(--class-progression);
+}
+.seg.item-useful {
+  color: var(--class-useful);
+}
+.seg.item-trap {
+  color: var(--class-trap);
+}
+.seg.item-filler {
+  color: var(--class-filler);
+}
+.seg.item-unknown {
+  color: var(--class-filler);
+  font-style: italic;
+}
+.seg.location {
+  color: var(--ok-text);
+}
+.seg.entrance {
+  color: var(--c-cyan);
+}
+
+.seg.c-bold {
+  font-weight: 700;
+}
+.seg.c-underline {
+  text-decoration: underline;
+}
+.seg.c-red {
+  color: var(--bad-text);
+}
+.seg.c-green {
+  color: var(--ok-text);
+}
+.seg.c-yellow {
+  color: var(--warn-text);
+}
+.seg.c-blue {
+  color: var(--c-blue);
+}
+.seg.c-magenta {
+  color: var(--c-magenta);
+}
+.seg.c-cyan {
+  color: var(--c-cyan);
+}
+.seg.c-white {
+  color: var(--c-white);
+}
+.seg.c-black {
+  color: var(--log-ts);
+}
+.empty {
+  max-width: 40rem;
+  padding: 1.5rem 0;
+  line-height: 1.6;
+}
+
+.offline-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+.offline-pane .otitle {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.offline-pane .omsg {
+  margin: 0;
+  max-width: 34rem;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+.offline-pane .ohint {
+  margin: 0;
+  max-width: 34rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.offline-pane button.go {
+  margin-top: 0.5rem;
+  padding: 0.45rem 1.4rem;
+  font-size: 0.85rem;
+}
+
+button.go {
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+button.go:disabled {
+  opacity: 0.45;
+}
+
+.say {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.say input[type='text'] {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+
+.sayrefuse {
+  border-top: 1px solid var(--bad-edge);
+  background: var(--bad-fill);
+  color: var(--bad-text);
+}
+
+.sayconfirm {
+  padding: 0.6rem 0.75rem 0.7rem;
+  border-top: 1px solid var(--warn-edge-strong);
+  background: var(--warn-fill);
+}
+.sayconfirm .line {
+  margin: 0 0 0.5rem;
+}
+.sayconfirm code {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--text);
+}
+.sayacts {
+  display: flex;
+  gap: 0.5rem;
+}
+.sayacts button.danger {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 40%, var(--border));
+}
+.sayacts button.ghost {
+  color: var(--muted);
+}
+
+.error,
+.note,
+.sayrefuse {
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.empty,
+.muted {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.sayconfirm .warn {
+  margin: 0 0 0.35rem;
+  color: var(--warn-text);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}

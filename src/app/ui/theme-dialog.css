@@ -1,0 +1,164 @@
+.pick {
+  display: grid;
+  grid-template-columns: minmax(10rem, 13rem) minmax(24rem, 1fr);
+  gap: 2rem;
+}
+@media (max-width: 40rem) {
+  .pick {
+    grid-template-columns: 1fr;
+  }
+}
+
+.group {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.group:first-child {
+  margin-top: 0;
+}
+.list label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.list label:hover {
+  background: var(--btn-hover);
+}
+.list label.on {
+  border-color: var(--accent);
+}
+.current {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* Apercu : tout y est lu dans les jetons de `.theme-scope`, jamais ecrit ici. */
+
+.preview {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.72rem;
+}
+.p-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.p-brand {
+  color: var(--accent);
+}
+.p-status {
+  padding: 0 0.3rem;
+  border: 1px solid var(--ok-edge);
+  border-radius: 4px;
+  color: var(--ok-text);
+  font-size: 0.65rem;
+}
+.p-spacer {
+  flex: 1;
+}
+.p-muted {
+  color: var(--muted);
+}
+.p-tabs {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0 0.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+.p-tabs span {
+  padding: 0.25rem 0;
+  border-bottom: 2px solid transparent;
+}
+.p-tabs .on {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.p-body {
+  padding: 0.4rem 0.5rem 0.5rem;
+}
+.p-body p {
+  margin: 0 0 0.2rem;
+}
+.p-ts {
+  color: var(--log-ts);
+  font-family: var(--mono);
+}
+.p-self {
+  color: var(--log-player-self);
+}
+.p-other {
+  color: var(--log-player-other);
+}
+.c-prog {
+  color: var(--class-progression);
+}
+.c-useful {
+  color: var(--class-useful);
+}
+.c-trap {
+  color: var(--class-trap);
+}
+.p-chart {
+  display: block;
+  width: 100%;
+  height: 4rem;
+  margin: 0.4rem 0;
+  background: var(--plot-bg);
+}
+.p-chart line {
+  stroke: var(--grid);
+}
+.p-chart polyline {
+  fill: none;
+  stroke-width: 1.5;
+}
+.s1 {
+  stroke: var(--series-1);
+}
+.s2 {
+  stroke: var(--series-2);
+}
+.s3 {
+  stroke: var(--series-3);
+}
+.p-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.p-btn {
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--btn);
+}
+.p-btn.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.p-tag.warn {
+  margin-left: auto;
+  padding: 0 0.3rem;
+  border: 1px solid var(--warn-edge);
+  border-radius: 4px;
+  color: var(--warn-text);
+}

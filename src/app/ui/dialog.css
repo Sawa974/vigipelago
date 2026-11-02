@@ -1,0 +1,64 @@
+/* `::backdrop` vit dans styles.css : une feuille encapsulee ne l'atteint pas de facon garantie. */
+dialog {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  max-width: min(44rem, 92vw);
+  max-height: 85vh;
+  overflow: hidden;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  margin: 0;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  flex: 1;
+}
+.x {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+}
+.x:hover {
+  color: var(--text);
+}
+
+.body {
+  padding: 0.9rem;
+  overflow-y: auto;
+  font-size: 0.82rem;
+}
+
+footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-top: 1px solid var(--border);
+}
+.spacer {
+  flex: 1;
+}
+.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}

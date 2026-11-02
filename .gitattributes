@@ -1,0 +1,7 @@
+# Tous les fichiers texte sont stockes ET restitues en LF, quelle que soit la
+# machine. Sans cette ligne, autocrlf reecrit les 45 fichiers du projet en CRLF
+# au checkout et un simple `git checkout` de secours les fait paraitre modifies.
+* text=auto eol=lf
+
+# Binaires : jamais de conversion de fin de ligne.
+*.ico binary

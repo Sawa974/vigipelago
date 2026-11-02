@@ -1,0 +1,54 @@
+<app-dialog [heading]="t('lang.title')" [open]="open()" (closed)="closed.emit()"
+            [confirmLabel]="t('common.apply')" (confirmed)="apply()">
+  <div class="list" role="radiogroup" [attr.aria-label]="t('lang.title')">
+    <p class="group">{{ t('lang.builtIn') }}</p>
+    @for (l of builtIn(); track l.code) {
+      <label [class.on]="selected() === l.code">
+        <input type="radio" name="lang" [value]="l.code"
+               [checked]="selected() === l.code" (change)="selected.set(l.code)" />
+        <span>{{ l.name }}</span>
+        <span class="code">{{ l.code }}</span>
+      </label>
+    }
+    @if (imported().length) {
+      <p class="group">{{ t('lang.imported') }}</p>
+      @for (l of imported(); track l.code) {
+        <label [class.on]="selected() === l.code">
+          <input type="radio" name="lang" [value]="l.code"
+                 [checked]="selected() === l.code" (change)="selected.set(l.code)" />
+          <span>{{ l.name }}</span>
+          <span class="code">{{ l.code }}</span>
+          <button type="button" class="ghost" (click)="remove(l.code)">{{ t('lang.remove') }}</button>
+        </label>
+      }
+    }
+  </div>
+
+  <h3 class="add">{{ t('lang.add') }}</h3>
+  <p class="hint">{{ t('lang.addHint') }}</p>
+  <p class="acts">
+    <button type="button" (click)="downloadTemplate()">{{ t('lang.template') }}</button>
+    <label class="filebtn">
+      {{ t('lang.importFile') }}
+      <input type="file" class="sr" accept=".json,application/json" (change)="onFile($event)" />
+    </label>
+  </p>
+
+  @if (error(); as e) {
+    <p class="err" role="alert">{{ t(e) }}</p>
+  }
+  @if (report(); as r) {
+    <p class="ok" role="status">{{ t('lang.added', { name: r.name }) }}</p>
+    <ul class="tally">
+      @if (r.missing.length) {
+        <li>{{ t('lang.missing', { count: r.missing.length }) }}</li>
+      }
+      @if (r.unknown.length) {
+        <li>{{ t('lang.unknown', { count: r.unknown.length }) }}</li>
+      }
+      @if (r.invalid.length) {
+        <li>{{ t('lang.invalid', { count: r.invalid.length }) }}</li>
+      }
+    </ul>
+  }
+</app-dialog>
