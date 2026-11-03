@@ -235,7 +235,11 @@ export class ProfileService {
           .delete();
         await db.slotStats.where('roomId').equals(roomId).delete();
         await db.rooms.delete(roomId);
-        await db.settings.bulkDelete([`lastSweepAt:${roomId}`, `textClientSlots:${roomId}`]);
+        await db.settings.bulkDelete([
+          `lastSweepAt:${roomId}`,
+          `textClientSlots:${roomId}`,
+          `sweepEnabled:${roomId}`,
+        ]);
       },
     );
     await this.refresh();

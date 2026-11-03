@@ -39,7 +39,7 @@
       <span class="active" [title]="ap.roomId() ?? ''">{{ activeLabel() }}</span>
     }
     <span class="status" [class]="'st-' + ap.state()">{{ stateLabel() }}</span>
-    @if (!offline()) {
+    @if (!offline() && ap.sweepEnabled()) {
       <button
         type="button"
         class="icon"
@@ -80,6 +80,9 @@
         <li role="separator"></li>
         <li role="none"><button type="button" role="menuitem" (click)="openMenuItem('theme')">{{ t('menu.theme') }}</button></li>
         <li role="none"><button type="button" role="menuitem" (click)="openMenuItem('language')">{{ t('menu.language') }}</button></li>
+        @if (!showConnect()) {
+          <li role="none"><button type="button" role="menuitem" (click)="openMenuItem('sweep')">{{ t('menu.sweep') }}</button></li>
+        }
         @if (!showConnect()) {
           <li role="separator"></li>
           <li role="none">
@@ -154,6 +157,8 @@
           <dd>{{ i.room.serverVersion ?? t('common.unknown') }}</dd>
           <dt>{{ t('info.generated') }}</dt>
           <dd>{{ i.room.generatorVersion ? 'Archipelago ' + i.room.generatorVersion : t('common.unknown') }}</dd>
+          <dt>{{ t('info.sweep') }}</dt>
+          <dd>{{ ap.sweepEnabled() ? t('info.sweep.all') : t('info.sweep.own') }}</dd>
           <dt>{{ t('info.recorded') }}</dt>
           <dd>{{ ap.eventCount() }}</dd>
           <dt>{{ t('fact.listened') }}</dt>
@@ -180,6 +185,25 @@
   } @else if (infoReady()) {
     <p class="muted">{{ t('info.notRecorded') }}</p>
   }
+</app-dialog>
+
+<app-dialog [heading]="t('sweep.title')" [open]="dialog() === 'sweep'" (closed)="dialog.set(null)">
+  <div class="modes" role="radiogroup" [attr.aria-label]="t('sweep.title')">
+    <label [class.on]="!ap.sweepEnabled()">
+      <input type="radio" name="sweepMode" [checked]="!ap.sweepEnabled()" (change)="setSweepEnabled(false)" />
+      <span>
+        <strong>{{ t('sweep.own') }}</strong>
+        <small>{{ t('sweep.own.hint') }}</small>
+      </span>
+    </label>
+    <label [class.on]="ap.sweepEnabled()">
+      <input type="radio" name="sweepMode" [checked]="ap.sweepEnabled()" (change)="setSweepEnabled(true)" />
+      <span>
+        <strong>{{ t('sweep.all') }}</strong>
+        <small>{{ t('sweep.all.hint') }}</small>
+      </span>
+    </label>
+  </div>
 </app-dialog>
 
 <app-theme-dialog [open]="dialog() === 'theme'" (closed)="dialog.set(null)" />

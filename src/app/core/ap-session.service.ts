@@ -53,7 +53,7 @@ import {
 import { ApSocket, type SocketState } from './ap-socket';
 import { readHintCostReply, validateObservedHintCost } from '../select/hint-economy';
 
-export const APP_VERSION = '0.9.0';
+export const APP_VERSION = '0.10.0';
 
 /** Lignes gardees en memoire, pas l'etendue de la recherche. */
 export const FEED_LIMIT = 2000;
@@ -117,7 +117,8 @@ export interface SweepProgress {
 }
 
 const LAST_SWEEP_KEY = (roomId: string) => `lastSweepAt:${roomId}`;
-const SWEEP_ENABLED_KEY = 'sweepEnabled';
+/** Par room, absent = desactive : chaque passage se connecte sous le nom des autres slots. */
+export const SWEEP_ENABLED_KEY = (roomId: string) => `sweepEnabled:${roomId}`;
 const SWEEP_DELAY_MS = 300;
 
 const RACE_MODE_KEY = '_read_race_mode';
@@ -161,7 +162,7 @@ export class ApSessionService {
   readonly itemRecovery = signal<ItemRecoveryReport | null>(null);
   readonly sweep = signal<SweepProgress | null>(null);
   /** Chaque passage est visible des autres joueurs. */
-  readonly sweepEnabled = signal<boolean>(true);
+  readonly sweepEnabled = signal<boolean>(false);
 
   /** Room affichee depuis la base, sans connexion. Ce n'est pas `roomId`. */
   readonly localRoomId = signal<string | null>(null);
@@ -260,6 +261,7 @@ export class ApSessionService {
     this.reconcileReport.set(null);
     this.itemRecovery.set(null);
     this.sweep.set(null);
+    this.sweepEnabled.set(false);
     this.missingDataPackages.set([]);
     this.hintsFromServer.set(false);
     this.permissions.set({});
@@ -302,13 +304,22 @@ export class ApSessionService {
 
   async sweepNow(): Promise<void> {
     const roomId = this.currentRoomId;
-    if (!roomId) return;
+    if (!roomId || !this.sweepEnabled()) return;
     await this.runSweep(roomId, this.ownSlot(), Date.now(), { reason: 'jamais-balaye', gapMs: 0 });
   }
 
+  private async loadSweepEnabled(roomId: string): Promise<boolean> {
+    const row = await db.settings.get(SWEEP_ENABLED_KEY(roomId));
+    const enabled = row ? Boolean(row.value) : false;
+    if (this.roomId() === roomId) this.sweepEnabled.set(enabled);
+    return enabled;
+  }
+
   async setSweepEnabled(enabled: boolean): Promise<void> {
+    const roomId = this.roomId();
+    if (roomId === null) return;
     this.sweepEnabled.set(enabled);
-    await db.settings.put({ key: SWEEP_ENABLED_KEY, value: enabled });
+    await db.settings.put({ key: SWEEP_ENABLED_KEY(roomId), value: enabled });
   }
 
   private handlePackets(packets: ServerPacket[]): void {
@@ -375,6 +386,7 @@ export class ApSessionService {
     if (!this.params) return;
     this.currentRoomId = info.seed_name;
     this.roomId.set(info.seed_name);
+    void this.loadSweepEnabled(info.seed_name);
     // `RoomInfo.time` est en secondes.
     this.roomCreatedAt = typeof info.time === 'number' ? Math.round(info.time * 1000) : null;
     this.permissions.set(info.permissions ?? {});
@@ -1261,9 +1273,7 @@ export class ApSessionService {
 
   /** Chaque passage diffuse un Join et un Part a toute la room : seulement sur un trou. */
   private async maybeSweep(roomId: string, ownSlot: number, now: number): Promise<void> {
-    const enabledRow = await db.settings.get(SWEEP_ENABLED_KEY);
-    const enabled = enabledRow ? Boolean(enabledRow.value) : true;
-    this.sweepEnabled.set(enabled);
+    const enabled = await this.loadSweepEnabled(roomId);
 
     const lastRow = await db.settings.get(LAST_SWEEP_KEY(roomId));
     const lastSweepAt = typeof lastRow?.value === 'number' ? lastRow.value : null;
@@ -1296,7 +1306,7 @@ export class ApSessionService {
     const token = ++this.sweepToken;
     const targets = selectSweepTargets(this.slotInfo, ownSlot);
     const tsLower = lastCoveredBefore(this.priorCoverage, now) ?? this.roomCreatedAt ?? now;
-    const [url] = candidateUrls(this.params!.host, this.params!.port);
+    const url = this.socket.url ?? candidateUrls(this.params!.host, this.params!.port)[0];
 
     const progress: SweepProgress = {
       running: true,
@@ -1498,6 +1508,7 @@ export class ApSessionService {
   async reloadFromDb(roomId: string, opts: { withFeed?: boolean } = {}): Promise<void> {
     if (this.roomId() === null) {
       this.roomId.set(roomId);
+      void this.loadSweepEnabled(roomId);
       const room = await db.rooms.get(roomId);
       if (room?.players?.length && this.players().length === 0) {
         this.players.set(room.players.map((p) => ({ slot: p.slot, name: p.name, game: p.game })));

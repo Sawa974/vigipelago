@@ -1,3 +1,4 @@
+import { candidateUrls } from './ap-url';
 import type { ClientPacket, ServerPacket } from '../protocol/types';
 import { decideRetry } from './retry-policy';
 
@@ -40,6 +41,7 @@ export class ApSocket {
   private stopped = true;
   private opens = 0;
   private everOnline = false;
+  private openUrl: string | null = null;
 
   /** Faux par defaut, sinon l'ecran reste bloque sur une tentative que rien n'interrompt. */
   autoRetry = false;
@@ -48,6 +50,11 @@ export class ApSocket {
   ownSlot: number | null = null;
 
   state: SocketState = 'idle';
+
+  /** Le schema qui a abouti : `ws://` ou `wss://`, selon le serveur. */
+  get url(): string | null {
+    return this.openUrl;
+  }
 
   constructor(private readonly handlers: ApSocketHandlers) {}
 
@@ -60,6 +67,7 @@ export class ApSocket {
     this.opens = 0;
     this.openedAt = 0;
     this.everOnline = false;
+    this.openUrl = null;
     this.open();
   }
 
@@ -100,16 +108,9 @@ export class ApSocket {
     this.startKeepalive();
   }
 
-  private candidateUrls(t: ApSocketTarget): string[] {
-    if (/^wss?:\/\//i.test(t.host)) return [t.host];
-    const local = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(t.host);
-    const authority = `${t.host}:${t.port}`;
-    return local ? [`ws://${authority}`, `wss://${authority}`] : [`wss://${authority}`, `ws://${authority}`];
-  }
-
   private open(): void {
     if (this.stopped || !this.target) return;
-    const urls = this.candidateUrls(this.target);
+    const urls = candidateUrls(this.target.host, this.target.port);
     const url = urls[this.schemeIndex % urls.length];
     this.opens++;
     this.setState('connecting', url);
@@ -126,6 +127,7 @@ export class ApSocket {
 
     ws.onopen = () => {
       opened = true;
+      this.openUrl = url;
       this.openedAt = Date.now();
       this.keepaliveMisses = 0;
       this.setState('handshake', url);
@@ -168,7 +170,7 @@ export class ApSocket {
       everOnline: this.everOnline,
       autoRetry: this.autoRetry,
       attempts: this.opens,
-      candidates: this.target ? this.candidateUrls(this.target).length : 1,
+      candidates: this.target ? candidateUrls(this.target.host, this.target.port).length : 1,
     });
     if (decision === 'unreachable') {
       this.stopped = true;

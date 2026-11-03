@@ -2,9 +2,9 @@
 
 A spectator companion for [Archipelago](https://archipelago.gg) multiworld games.
 
-Vigipelago connects to a room as a text client, listens to everything the server announces,
-and keeps it in your browser: a searchable console, a page per player, and statistics over
-time. It never asks the server for anything that would spoil what you have not found yet.
+Vigipelago connects to a room as a text client under your own slot, listens to everything
+the server announces, and keeps it in your browser: a searchable console, a page per player,
+and statistics over time. It never asks the server for anything that would spoil what you have not found yet.
 
 **Try it:** https://sawa974.github.io/vigipelago/ (nothing to install, your data stays in your browser)
 
@@ -13,7 +13,7 @@ time. It never asks the server for anything that would spoil what you have not f
 ## What it does
 
 - **Console**: the server's messages, kept and searchable across sessions, with the lines
-  missed while you were away caught up on reconnection (checks, hints, received items).
+  missed while you were away caught up on reconnection (your checks, hints, received items).
 - **Players**: for each slot, lists of items, locations and hints, searchable by name, player
   or location: where an item came from, what a checked location held, which hints others asked
   you for. Handy when your game's tracker doesn't show them, or when you play in another

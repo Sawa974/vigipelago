@@ -359,6 +359,50 @@ describe('cles reelles prefixees par la roomId', () => {
     expect(p.creates[0].event.dedupKey).toBe(`${R}|i:0:3:101`);
   });
 
+  it('importe un hint absent meme si un autre hint du meme joueur est proche', () => {
+    expect(isStableKey(`${R}|h:0:3:1204`)).toBe(true);
+    const mine = local({ id: 1, dedupKey: `${R}|h:0:3:1204`, ts: 10 * M, tsPrecision: 'approx' });
+    const theirs = incoming({ kind: 'hint', dedupKey: `${R}|h:0:3:1300`, ts: 10 * M + 5 * S });
+    const p = plan([mine], [theirs]);
+    expect(p.counts.paired).toBe(0);
+    expect(p.counts.created).toBe(1);
+  });
+
+  it('horodate un hint rattrape quand l import connait son instant exact', () => {
+    const mine = local({
+      id: 1,
+      dedupKey: `${R}|h:0:3:1204`,
+      ts: 10 * M,
+      tsPrecision: 'approx',
+      tsLower: 0,
+      tsUpper: 20 * M,
+    });
+    const theirs = incoming({ kind: 'hint', dedupKey: `${R}|h:0:3:1204`, ts: 4 * M });
+    const p = plan([mine], [theirs]);
+    expect(p.counts.created).toBe(0);
+    expect(p.counts.replaced).toBe(1);
+    expect(p.updates[0].changes.ts).toBe(4 * M);
+  });
+
+  it('apparie la meme mort datee differemment par deux machines, sans mort du meme joueur confondue', () => {
+    expect(volatileSignature(`${R}|d:600123:Ada:2`)).toBe(`${R}|d:Ada:2`);
+    const mine = local({ id: 1, dedupKey: `${R}|d:${10 * M}:Ada`, ts: 10 * M });
+    const same = incoming({ kind: 'death', dedupKey: `${R}|d:${10 * M + 400}:Ada`, ts: 10 * M + 400 });
+    const other = incoming({ kind: 'death', dedupKey: `${R}|d:${10 * M + 300}:Dana`, ts: 10 * M + 300 });
+    const p = plan([mine], [same, other]);
+    expect(p.counts.paired).toBe(1);
+    expect(p.counts.created).toBe(1);
+    expect(p.creates[0].event.dedupKey).toBe(`${R}|d:${10 * M + 300}:Dana`);
+  });
+
+  it('importe une mort manquee meme si le meme joueur est mort 30 s plus tard chez nous', () => {
+    const mine = local({ id: 1, dedupKey: `${R}|d:${10 * M + 30 * S}:Ada`, ts: 10 * M + 30 * S });
+    const missed = incoming({ kind: 'death', dedupKey: `${R}|d:${10 * M}:Ada`, ts: 10 * M });
+    const p = plan([mine], [missed]);
+    expect(p.counts.paired).toBe(0);
+    expect(p.counts.created).toBe(1);
+  });
+
   it('apparie toujours un vrai doublon de message a cle volatile, prefixe compris', () => {
     const mine = local({ id: 1, dedupKey: `${R}|x:chat:9f2a:29051`, ts: 10 * M });
     const theirs = incoming({ dedupKey: `${R}|x:chat:9f2a:29052`, ts: 10 * M + 30 * S });

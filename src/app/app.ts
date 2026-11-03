@@ -80,7 +80,7 @@ export class App {
   protected readonly tabs = TABS;
   protected readonly tab = signal<TabKey>('console');
   protected readonly menuOpen = signal(false);
-  protected readonly dialog = signal<'export' | 'import' | 'info' | 'theme' | 'language' | null>(null);
+  protected readonly dialog = signal<'export' | 'import' | 'info' | 'theme' | 'language' | 'sweep' | null>(null);
   protected readonly info = signal<PartyInfo | null>(null);
   /** Sans lui, « pas encore enregistree » clignoterait pendant la lecture. */
   protected readonly infoReady = signal(false);
@@ -126,7 +126,7 @@ export class App {
     return this.i18n.datetime(ts);
   }
 
-  protected openMenuItem(item: 'export' | 'import' | 'info' | 'theme' | 'language'): void {
+  protected openMenuItem(item: 'export' | 'import' | 'info' | 'theme' | 'language' | 'sweep'): void {
     this.menuOpen.set(false);
     if (item === 'info') void this.loadInfo();
     this.dialog.set(item);
@@ -179,6 +179,10 @@ export class App {
 
   protected sweepNow(): void {
     void this.ap.sweepNow();
+  }
+
+  protected setSweepEnabled(enabled: boolean): void {
+    void this.ap.setSweepEnabled(enabled);
   }
 
   /** Sur `roomId`, que seul `forgetRoom` remet a `null` : pas `localRoomId`, que la connexion efface. */

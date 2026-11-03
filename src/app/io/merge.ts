@@ -9,13 +9,22 @@ export const MIN_OFFSET_SAMPLES = 5;
 /** Apres correction du decalage. */
 export const PAIR_WINDOW_MS = 120_000;
 
+/** Une meme mort arrive partout a la latence pres ; plus large, deux morts proches se confondraient. */
+export const DEATH_PAIR_WINDOW_MS = 10_000;
+
 /** Le prefixe `{roomId}|` doit etre retire, sinon aucune cle ne parait stable. */
 export function isStableKey(dedupKey: string): boolean {
   const suffix = dedupKey.slice(dedupKey.indexOf('|') + 1);
-  return suffix.startsWith('i:') || suffix.startsWith('ri:');
+  return suffix.startsWith('i:') || suffix.startsWith('ri:') || suffix.startsWith('h:');
 }
 
+/** `d:{ts}:{source}` : l'instant est au milieu, et la source peut contenir des `:`. */
 export function volatileSignature(dedupKey: string): string {
+  const start = dedupKey.indexOf('|') + 1;
+  const suffix = dedupKey.slice(start);
+  if (suffix.startsWith('d:')) {
+    return `${dedupKey.slice(0, start)}d:${suffix.slice(suffix.indexOf(':', 2) + 1)}`;
+  }
   return dedupKey.slice(0, dedupKey.lastIndexOf(':'));
 }
 
@@ -140,7 +149,7 @@ export function planMerge(input: MergeInput): MergePlan {
     }
 
     if (!isStableKey(event.dedupKey)) {
-      if (consumePair(volatilePool, volatileSignature(event.dedupKey), shifted.ts)) {
+      if (consumePair(volatilePool, volatileSignature(event.dedupKey), shifted.ts, pairWindow(event.dedupKey))) {
         counts.paired++;
         continue;
       }
@@ -230,11 +239,16 @@ function enrich(
   return Object.keys(out).length > 0 ? { id: local.id, changes: out } : null;
 }
 
+function pairWindow(dedupKey: string): number {
+  return dedupKey.slice(dedupKey.indexOf('|') + 1).startsWith('d:') ? DEATH_PAIR_WINDOW_MS : PAIR_WINDOW_MS;
+}
+
 /** Un pour un : un message reellement ecrit deux fois garde deux lignes. */
 function consumePair(
   pool: Map<string, { ts: number; used: boolean }[]>,
   signature: string,
   ts: number,
+  windowMs: number,
 ): boolean {
   const bucket = pool.get(signature);
   if (!bucket) return false;
@@ -244,7 +258,7 @@ function consumePair(
   for (const candidate of bucket) {
     if (candidate.used) continue;
     const delta = Math.abs(candidate.ts - ts);
-    if (delta <= PAIR_WINDOW_MS && delta < bestDelta) {
+    if (delta <= windowMs && delta < bestDelta) {
       best = candidate;
       bestDelta = delta;
     }
