@@ -181,7 +181,7 @@ describe('buildSendRows', () => {
       itemCatalogues: new Map([[1, { 500: 'Progressive Sword' }]]),
       events: [sendEvent({ locationId: 11, dstSlot: 3, itemId: 777 })],
     });
-    expect(res.rows[0].itemName).toBe('Objet 777');
+    expect(res.rows[0].itemName).toBe('Item 777');
     expect(res.rows[0].itemUnresolved).toBe(true);
     expect(res.itemCataloguesMissing).toEqual(['Mario']);
   });
@@ -192,7 +192,7 @@ describe('buildSendRows', () => {
       locationCatalogue: null,
       events: [sendEvent({ locationId: 10 })],
     });
-    expect(res.rows[0].name).toBe('Emplacement 10');
+    expect(res.rows[0].name).toBe('Location 10');
     expect(res.rows[0].unresolved).toBe(true);
     expect(res.catalogueMissing).toBe(true);
   });

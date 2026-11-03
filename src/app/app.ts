@@ -120,7 +120,9 @@ export class App {
     return this.ap.lastError() || null;
   });
 
-  protected readonly durationLabel = durationLabel;
+  protected durationLabel(ms: number): string {
+    return durationLabel(ms, this.t);
+  }
 
   protected datetime(ts: number): string {
     return this.i18n.datetime(ts);

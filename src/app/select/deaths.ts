@@ -98,7 +98,7 @@ export function buildDeathTally(input: DeathTallyInput): DeathTally {
   return {
     total,
     unattributed,
-    sources: [...sources].sort((a, b) => a.localeCompare(b, 'fr')),
+    sources: [...sources].sort((a, b) => a.localeCompare(b)),
     bySlot,
     slotsWithoutData: bySlot.filter((s) => s.count === null).length,
     silent: total === 0,

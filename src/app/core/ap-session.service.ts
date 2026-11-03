@@ -9,7 +9,7 @@ import {
   type Room,
   type SlotStats,
 } from '../db/db';
-import { gapDuration, lastCoveredBefore, mergeCoverage, type Interval } from '../ingest/coverage';
+import { gapDuration, lastCoveredBefore, mergeCoverage, sessionEndAt, type Interval } from '../ingest/coverage';
 import { PresenceTracker, type PresenceOp } from '../ingest/presence';
 import { ACTIVITY_KINDS, replayPresence } from '../ingest/rebuild-presence';
 import { computeReceivedGaps, placedDedupKey } from '../ingest/received-items';
@@ -28,6 +28,7 @@ import { itemClassCss, itemClassOf, ITEM_CLASS_GLYPH } from '../protocol/item-cl
 import { VIGIPELAGO_TAG } from '../protocol/tags';
 import { DEATHLINK_TAG, buildDeathDraft, isDeathLink, renderDeath } from '../ingest/deathlink';
 import { I18n } from '../i18n/i18n.service';
+import { fallbackNames } from '../select/fallback-names';
 import { decodePrintJson, type EventDraft } from '../protocol/decode';
 import { NameResolver } from '../protocol/names';
 import {
@@ -53,7 +54,7 @@ import {
 import { ApSocket, type SocketState } from './ap-socket';
 import { readHintCostReply, validateObservedHintCost } from '../select/hint-economy';
 
-export const APP_VERSION = '0.10.0';
+export const APP_VERSION = '0.11.0';
 
 /** Lignes gardees en memoire, pas l'etendue de la recherche. */
 export const FEED_LIMIT = 2000;
@@ -120,6 +121,8 @@ const LAST_SWEEP_KEY = (roomId: string) => `lastSweepAt:${roomId}`;
 /** Par room, absent = desactive : chaque passage se connecte sous le nom des autres slots. */
 export const SWEEP_ENABLED_KEY = (roomId: string) => `sweepEnabled:${roomId}`;
 const SWEEP_DELAY_MS = 300;
+/** `idle` en est exclu : la deconnexion voulue ferme elle-meme, avec sa raison. */
+const DROPPED_STATES: ReadonlySet<SocketState> = new Set(['backoff', 'unreachable', 'fatal', 'connecting']);
 
 const RACE_MODE_KEY = '_read_race_mode';
 
@@ -185,6 +188,7 @@ export class ApSessionService {
   private chain: Promise<void> = Promise.resolve();
 
   private sessionId: number | null = null;
+  private sessionStartedAt = 0;
   private currentRoomId: string | null = null;
   private roomCreatedAt: number | null = null;
   /** Arrive au `RoomInfo`, avant que la room soit ecrite. */
@@ -207,11 +211,17 @@ export class ApSessionService {
   private readonly presenceIds = new WeakMap<PresenceInterval, Promise<number>>();
 
   constructor() {
+    this.names.fallback = fallbackNames(this.i18n.t);
     this.tracker = new PresenceTracker((op) => this.onPresenceOp(op));
     this.socket = new ApSocket({
       onState: (s, d) => {
         this.state.set(s);
         this.detail.set(d ?? '');
+        // La session suit la socket : ouverte au `Connected`, fermee des que la liaison tombe.
+        if (DROPPED_STATES.has(s) && this.sessionId !== null) {
+          const end = sessionEndAt(this.sessionStartedAt, this.socket.lastHeardAt, Date.now());
+          void this.guard('Session', this.closeSession('socket-error', end));
+        }
       },
       onOpen: () => {
         this.resolverReady = false;
@@ -274,6 +284,12 @@ export class ApSessionService {
     if (!this.params) return;
     this.lastError.set('');
     this.refusal.set([]);
+    // Hors connexion, `browseLocal` a vide la console : sans ceci elle reste vide pendant les tentatives.
+    const roomId = this.roomId();
+    if (roomId !== null && this.localRoomId() !== null) {
+      this.localRoomId.set(null);
+      void this.guard('History', this.loadHistory(roomId));
+    }
     this.socket.connect({ host: this.params.host, port: this.params.port });
     this.startFlushLoop();
   }
@@ -498,6 +514,7 @@ export class ApSessionService {
     this.textClientSlots = await this.loadTextClientSlots(roomId);
     await this.rebuildPresence(roomId, priorSessions, pkt);
 
+    this.sessionStartedAt = now;
     this.sessionId = (await db.sessions.add({
       roomId,
       connectedAsSlot: this.params!.slotName,
@@ -551,7 +568,7 @@ export class ApSessionService {
     this.socket.send([{ cmd: 'Get', keys: [RACE_MODE_KEY] }]);
 
     // Hors file : le balayage ne doit pas retenir les paquets qui suivent.
-    void this.guard('Balayage', this.maybeSweep(roomId, pkt.slot, now));
+    void this.guard(this.i18n.t('bar.sweep'), this.maybeSweep(roomId, pkt.slot, now));
   }
 
   private async reconcile(pkt: ConnectedPacket, priorCoverage: Interval[], now: number): Promise<void> {
@@ -1234,7 +1251,7 @@ export class ApSessionService {
     this.updatePresenceFrom(draft, ts);
     // `!hint` seul y donne le cout exact.
     if (draft.kind === 'command' && packet.type === 'CommandResult') {
-      void this.guard('Cout du hint', this.observeHintCostReply(draft.text));
+      void this.guard(this.i18n.t('info.hintCost'), this.observeHintCostReply(draft.text));
     }
   }
 
@@ -1572,15 +1589,14 @@ export class ApSessionService {
     }, HEARTBEAT_INTERVAL_MS);
   }
 
-  private async closeSession(reason: CaptureSession['closeReason']): Promise<void> {
+  private async closeSession(reason: CaptureSession['closeReason'], endedAt = Date.now()): Promise<void> {
     if (this.sessionId === null) return;
     const id = this.sessionId;
     this.sessionId = null;
-    const now = Date.now();
     // Au-dela de la session : pas de donnees, ce qui n'est pas `offline`.
-    this.tracker.end(now);
+    this.tracker.end(endedAt);
     this.publishPresence();
-    await db.sessions.update(id, { endedAt: now, closeReason: reason });
+    await db.sessions.update(id, { endedAt, closeReason: reason });
   }
 
   /** Un onglet ferme brutalement laisse session et intervalles ouverts. */

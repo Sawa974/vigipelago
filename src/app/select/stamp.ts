@@ -1,3 +1,5 @@
+import { clock, dayMonth, DEFAULT_DATE_STYLE, type DateStyle } from './date-format';
+
 /** Jour calendaire local, jamais `now - ts < 86400000`. */
 export function sameLocalDay(a: number, b: number): boolean {
   const x = new Date(a);
@@ -12,17 +14,7 @@ export interface ShortStamp {
   isDay: boolean;
 }
 
-/** `locale` indefinie hors tests : l'ordre jour/mois suit le navigateur. */
-export function shortStamp(ts: number, now: number, locale?: string): ShortStamp {
-  const d = new Date(ts);
-  if (sameLocalDay(ts, now)) {
-    return {
-      text: d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
-      isDay: false,
-    };
-  }
-  return {
-    text: d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }),
-    isDay: true,
-  };
+export function shortStamp(ts: number, now: number, style: DateStyle = DEFAULT_DATE_STYLE): ShortStamp {
+  if (sameLocalDay(ts, now)) return { text: clock(ts, style), isDay: false };
+  return { text: dayMonth(ts, style), isDay: true };
 }

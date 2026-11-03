@@ -36,6 +36,8 @@ import { classSegments, countEvents } from '../select/progress';
 import { shortStamp } from '../select/stamp';
 import { buildHintEconomy } from '../select/hint-economy';
 import { buildSendRows, filterSendRows, type SendStatus } from '../select/sends';
+import { fallbackNames } from '../select/fallback-names';
+import { usesTwelveHours } from '../select/date-format';
 
 const RELOAD_THROTTLE_MS = 15_000;
 
@@ -82,11 +84,16 @@ const SEND_FILTERS: { key: SendStatus | 'all'; label: Key; title: Key }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './players.html',
   styleUrl: './players.css',
+  host: { '[class.h12]': 'twelveHours()' },
 })
 export class PlayersTab {
   protected readonly ap = inject(ApSessionService);
   private readonly i18n = inject(I18n);
   protected readonly t = this.i18n.t;
+  /** `~09:05 PM` deborde les colonnes taillees pour `~21:05`. */
+  protected readonly twelveHours = computed(() => usesTwelveHours(this.i18n.dateStyle()));
+  /** Relu a chaque changement de langue. */
+  private readonly fallback = computed(() => (this.i18n.lang(), fallbackNames(this.t)));
 
   protected readonly selected = signal<number | null>(null);
   protected readonly loading = signal(false);
@@ -140,7 +147,7 @@ export class PlayersTab {
         presence: (presence[p.slot]?.state ?? 'none') as PresenceKind,
         textClient: presence[p.slot]?.textClient ?? false,
       }))
-      .sort((a, b) => Number(b.self) - Number(a.self) || a.name.localeCompare(b.name, 'fr'));
+      .sort((a, b) => Number(b.self) - Number(a.self) || a.name.localeCompare(b.name));
   });
 
   private readonly playerNames = computed(() => new Map(this.roster().map((r) => [r.slot, r.name])));
@@ -187,6 +194,7 @@ export class PlayersTab {
       includeMissing: slot === this.ap.ownSlot(),
       locationCatalogues: this.locCatalogues(),
       playerNames: this.playerNames(),
+      fallback: this.fallback(),
     });
   });
 
@@ -213,6 +221,7 @@ export class PlayersTab {
       includeMissing: slot !== null && slot === this.ap.ownSlot(),
       itemCatalogues: this.itemCatalogues(),
       playerNames: this.playerNames(),
+      fallback: this.fallback(),
     });
   });
 
@@ -262,6 +271,7 @@ export class PlayersTab {
       locationCatalogue: this.locCatalogue(),
       itemCatalogues: this.itemCatalogues(),
       playerNames: this.playerNames(),
+      fallback: this.fallback(),
     });
   });
 
@@ -301,6 +311,7 @@ export class PlayersTab {
       outbound: this.outbound(),
       inbound: this.inbound(),
       names: new Map(this.ap.players().map((p) => [p.slot, p.name])),
+      fallback: this.fallback(),
     });
   });
 
@@ -718,6 +729,6 @@ export class PlayersTab {
   }
 
   protected stamp(ts: number): string {
-    return shortStamp(ts, Date.now()).text;
+    return shortStamp(ts, Date.now(), this.i18n.dateStyle()).text;
   }
 }

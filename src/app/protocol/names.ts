@@ -1,3 +1,4 @@
+import { DEFAULT_FALLBACK_NAMES, type FallbackNames } from '../select/fallback-names';
 import type { NetworkPlayer, NetworkSlot } from './types';
 
 export class NameResolver {
@@ -7,6 +8,7 @@ export class NameResolver {
   private locationNames = new Map<string, Record<number, string>>();
 
   ownSlot: number | null = null;
+  fallback: FallbackNames = DEFAULT_FALLBACK_NAMES;
 
   setPlayers(players: NetworkPlayer[], slotInfo: Record<string, NetworkSlot>): void {
     this.playerBySlot.clear();
@@ -28,7 +30,7 @@ export class NameResolver {
 
   playerName(slot: number): string {
     const p = this.playerBySlot.get(slot);
-    if (!p) return `Slot ${slot}`;
+    if (!p) return this.fallback.slot(slot);
     return p.alias || p.name;
   }
 
@@ -50,13 +52,13 @@ export class NameResolver {
   itemName(id: number, slot: number): string {
     const game = this.gameBySlot.get(slot);
     const table = game ? this.itemNames.get(game) : undefined;
-    return table?.[id] ?? `Item ${id}`;
+    return table?.[id] ?? this.fallback.item(id);
   }
 
   /** `slot` : le joueur dont le jeu definit l'id. */
   locationName(id: number, slot: number): string {
     const game = this.gameBySlot.get(slot);
     const table = game ? this.locationNames.get(game) : undefined;
-    return table?.[id] ?? `Location ${id}`;
+    return table?.[id] ?? this.fallback.location(id);
   }
 }

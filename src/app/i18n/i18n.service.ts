@@ -1,9 +1,21 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { EN, type Key } from './en';
+import {
+  clock,
+  dateTime,
+  dayMonth,
+  isDateOrder,
+  isTimeFormat,
+  type DateOrder,
+  type DateStyle,
+  type TimeFormat,
+} from '../select/date-format';
 import { pickLanguage, translate, type Dict, type Params } from './translate';
 
 export const LANG_KEY = 'vigipelago.lang';
 export const IMPORTED_LANGS_KEY = 'vigipelago.langs';
+export const DATE_ORDER_KEY = 'vigipelago.dateOrder';
+export const TIME_FORMAT_KEY = 'vigipelago.timeFormat';
 
 /** L'anglais vit dans le code, les autres dans `public/i18n`. */
 export const BUILT_IN_LANGUAGES = ['en', 'fr'] as const;
@@ -26,6 +38,13 @@ interface Imported {
 @Injectable({ providedIn: 'root' })
 export class I18n {
   readonly lang = signal('en');
+  readonly dateOrder = signal<DateOrder>(readStored(DATE_ORDER_KEY, isDateOrder, 'auto'));
+  readonly timeFormat = signal<TimeFormat>(readStored(TIME_FORMAT_KEY, isTimeFormat, 'auto'));
+  readonly dateStyle = computed<DateStyle>(() => ({
+    order: this.dateOrder(),
+    time: this.timeFormat(),
+    lang: this.lang(),
+  }));
   private readonly dict = signal<Dict>(EN);
   private readonly imported = signal<Record<string, Imported>>(readImported());
 
@@ -92,13 +111,37 @@ export class I18n {
     document.documentElement.lang = lang;
   }
 
+  setDateStyle(order: DateOrder, time: TimeFormat): void {
+    this.dateOrder.set(order);
+    this.timeFormat.set(time);
+    try {
+      localStorage.setItem(DATE_ORDER_KEY, order);
+      localStorage.setItem(TIME_FORMAT_KEY, time);
+    } catch {
+      /* le choix vaut pour cette visite */
+    }
+  }
+
   /** Dans la langue de l'interface, et non celle du systeme. */
   datetime(ts: number): string {
-    try {
-      return new Date(ts).toLocaleString(this.lang());
-    } catch {
-      return new Date(ts).toLocaleString();
-    }
+    return dateTime(ts, this.dateStyle());
+  }
+
+  day(ts: number): string {
+    return dayMonth(ts, this.dateStyle());
+  }
+
+  clock(ts: number, seconds = false): string {
+    return clock(ts, this.dateStyle(), seconds);
+  }
+}
+
+function readStored<T>(key: string, valid: (v: unknown) => v is T, fallback: T): T {
+  try {
+    const v = localStorage.getItem(key);
+    return valid(v) ? v : fallback;
+  } catch {
+    return fallback;
   }
 }
 

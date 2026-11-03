@@ -1,6 +1,7 @@
 import type { ApEvent } from '../db/db';
 import { itemClassOf, type ItemClass } from '../protocol/item-class';
 import { filterChecklist, type ChecklistView } from './checklist';
+import { DEFAULT_FALLBACK_NAMES, type FallbackNames } from './fallback-names';
 
 /** Le nombre restant est exact ; la liste des restants vient du catalogue du jeu et deborde. */
 export type LocationStatus = 'checked' | 'hinted' | 'missing';
@@ -54,6 +55,8 @@ export interface LocationRowsInput {
   /** Par slot destinataire, le catalogue de SON jeu. */
   itemCatalogues: ReadonlyMap<number, Record<number, string>>;
   playerNames: ReadonlyMap<number, string>;
+  /** Absent : les noms par defaut, en anglais. */
+  fallback?: FallbackNames;
 }
 
 export interface LocationRowsResult {
@@ -74,6 +77,7 @@ export function buildLocationRows(input: LocationRowsInput): LocationRowsResult 
     itemCatalogues,
     playerNames,
   } = input;
+  const fallback = input.fallback ?? DEFAULT_FALLBACK_NAMES;
 
   const checkedTs = new Map<number, { ts: number; approx: boolean }>();
   const hinted = new Set<number>();
@@ -84,9 +88,9 @@ export function buildLocationRows(input: LocationRowsInput): LocationRowsResult 
     const table = itemCatalogues.get(e.dstSlot) ?? null;
     return {
       dstSlot: e.dstSlot,
-      dstName: playerNames.get(e.dstSlot) ?? `Slot ${e.dstSlot}`,
+      dstName: playerNames.get(e.dstSlot) ?? fallback.slot(e.dstSlot),
       itemId: e.itemId,
-      itemName: table?.[e.itemId] ?? `Objet ${e.itemId}`,
+      itemName: table?.[e.itemId] ?? fallback.item(e.itemId),
       itemUnresolved: table?.[e.itemId] === undefined,
       cls: e.itemFlags === null ? 'unknown' : (itemClassOf(e.itemFlags) ?? 'unknown'),
     };
@@ -119,7 +123,7 @@ export function buildLocationRows(input: LocationRowsInput): LocationRowsResult 
   for (const [id, when] of checkedTs) {
     rows.push({
       id,
-      name: nameOf(catalogue, id),
+      name: nameOf(catalogue, id, fallback),
       status: 'checked',
       unresolved: catalogue?.[id] === undefined,
       lastTs: when.ts === 0 ? null : when.ts,
@@ -133,7 +137,7 @@ export function buildLocationRows(input: LocationRowsInput): LocationRowsResult 
     if (checkedTs.has(id)) continue;
     rows.push({
       id,
-      name: nameOf(catalogue, id),
+      name: nameOf(catalogue, id, fallback),
       status: 'hinted',
       unresolved: catalogue?.[id] === undefined,
       lastTs: null,
@@ -163,7 +167,7 @@ export function buildLocationRows(input: LocationRowsInput): LocationRowsResult 
   rows.sort(
     (a, b) =>
       Number(a.unresolved) - Number(b.unresolved) ||
-      a.name.localeCompare(b.name, 'fr', { numeric: true }) ||
+      a.name.localeCompare(b.name, undefined, { numeric: true }) ||
       a.id - b.id,
   );
 
@@ -190,8 +194,8 @@ export function buildLocationRows(input: LocationRowsInput): LocationRowsResult 
   };
 }
 
-function nameOf(catalogue: Record<number, string> | null, id: number): string {
-  return catalogue?.[id] ?? `Emplacement ${id}`;
+function nameOf(catalogue: Record<number, string> | null, id: number, fallback: FallbackNames): string {
+  return catalogue?.[id] ?? fallback.location(id);
 }
 
 export function contentUnknown(row: LocationRow): boolean {

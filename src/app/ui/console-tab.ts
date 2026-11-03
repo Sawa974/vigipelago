@@ -164,10 +164,7 @@ export class ConsoleTab {
   }
 
   protected time(ts: number): string {
-    const d = new Date(ts);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(
-      d.getSeconds(),
-    ).padStart(2, '0')}`;
+    return this.i18n.clock(ts, true);
   }
 
   protected kindLabel(kind: EventKind): string {

@@ -1,6 +1,7 @@
 import type { ApEvent } from '../db/db';
 import { itemClassOf, type ItemClass } from '../protocol/item-class';
 import { filterChecklist, type ChecklistView } from './checklist';
+import { DEFAULT_FALLBACK_NAMES, type FallbackNames } from './fallback-names';
 
 /** Un objet se nomme dans le jeu du destinataire, pas dans celui du monde qui l'heberge. */
 export type SendStatus = 'sent' | 'pending';
@@ -45,6 +46,8 @@ export interface SendRowsInput {
   /** Par slot destinataire, le catalogue de SON jeu. */
   itemCatalogues: ReadonlyMap<number, Record<number, string>>;
   playerNames: ReadonlyMap<number, string>;
+  /** Absent : les noms par defaut, en anglais. */
+  fallback?: FallbackNames;
 }
 
 export interface SendRowsResult {
@@ -65,6 +68,7 @@ interface Hit {
 export function buildSendRows(input: SendRowsInput): SendRowsResult {
   const { events, slot, snapshot, locationCatalogue, itemCatalogues, playerNames } = input;
   const checkedFromServer = input.checkedFromServer ?? null;
+  const fallback = input.fallback ?? DEFAULT_FALLBACK_NAMES;
 
   const sent = new Map<number, Hit>();
   const hints = new Map<number, Hit>();
@@ -98,11 +102,11 @@ export function buildSendRows(input: SendRowsInput): SendRowsResult {
   const push = (locationId: number, hit: Hit, status: SendStatus): void => {
     const catalogue = itemCatalogues.get(hit.dstSlot) ?? null;
     const toItsHost = hit.dstSlot === slot;
-    const dstName = playerNames.get(hit.dstSlot) ?? `Slot ${hit.dstSlot}`;
-    const itemName = catalogue?.[hit.itemId] ?? `Objet ${hit.itemId}`;
+    const dstName = playerNames.get(hit.dstSlot) ?? fallback.slot(hit.dstSlot);
+    const itemName = catalogue?.[hit.itemId] ?? fallback.item(hit.itemId);
     rows.push({
       locationId,
-      name: locationCatalogue?.[locationId] ?? `Emplacement ${locationId}`,
+      name: locationCatalogue?.[locationId] ?? fallback.location(locationId),
       searchExtra: `${itemName} ${dstName}`,
       status,
       itemId: hit.itemId,
@@ -130,7 +134,7 @@ export function buildSendRows(input: SendRowsInput): SendRowsResult {
 
   // Le plus recent d'abord : le plafond doit couper les plus vieilles lignes.
   rows.sort(
-    (a, b) => b.ts - a.ts || a.name.localeCompare(b.name, 'fr', { numeric: true }),
+    (a, b) => b.ts - a.ts || a.name.localeCompare(b.name, undefined, { numeric: true }),
   );
 
   const missing = new Set<string>();
@@ -151,7 +155,7 @@ export function buildSendRows(input: SendRowsInput): SendRowsResult {
     rows,
     tally: { sent: sent.size, toOthers, toSelf, pending, doneWithoutItem },
     catalogueMissing: locationCatalogue === null,
-    itemCataloguesMissing: [...missing].sort((a, b) => a.localeCompare(b, 'fr')),
+    itemCataloguesMissing: [...missing].sort((a, b) => a.localeCompare(b)),
   };
 }
 

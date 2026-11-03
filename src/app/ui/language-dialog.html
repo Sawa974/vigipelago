@@ -24,6 +24,33 @@
     }
   </div>
 
+  <div class="formats">
+    <div>
+      <h3 class="add">{{ t('lang.dateOrder') }}</h3>
+      <div class="list" role="radiogroup" [attr.aria-label]="t('lang.dateOrder')">
+        @for (o of orders; track o) {
+          <label [class.on]="order() === o">
+            <input type="radio" name="dateOrder" [value]="o" [checked]="order() === o" (change)="order.set(o)" />
+            <span>{{ t(o === 'auto' ? 'lang.dateOrder.auto' : o === 'dm' ? 'lang.dateOrder.dm' : 'lang.dateOrder.md') }}</span>
+            <span class="code">{{ dayExample(o) }}</span>
+          </label>
+        }
+      </div>
+    </div>
+    <div>
+      <h3 class="add">{{ t('lang.timeFormat') }}</h3>
+      <div class="list" role="radiogroup" [attr.aria-label]="t('lang.timeFormat')">
+        @for (f of times; track f) {
+          <label [class.on]="time() === f">
+            <input type="radio" name="timeFormat" [value]="f" [checked]="time() === f" (change)="time.set(f)" />
+            <span>{{ t(f === 'auto' ? 'lang.timeFormat.auto' : f === 'h24' ? 'lang.timeFormat.h24' : 'lang.timeFormat.h12') }}</span>
+            <span class="code">{{ timeExample(f) }}</span>
+          </label>
+        }
+      </div>
+    </div>
+  </div>
+
   <h3 class="add">{{ t('lang.add') }}</h3>
   <p class="hint">{{ t('lang.addHint') }}</p>
   <p class="acts">

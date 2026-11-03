@@ -94,3 +94,22 @@ h3.add {
   font-size: 0.78rem;
   color: var(--muted);
 }
+
+/* Dates et heures cote a cote ; l'une sous l'autre quand le dialogue est etroit. */
+.formats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1rem;
+}
+/* Sans lui, un libelle long garde sa largeur et deborde sur la colonne voisine. */
+.formats > div {
+  min-width: 0;
+}
+.formats .code {
+  white-space: nowrap;
+}
+@media (max-width: 36rem) {
+  .formats {
+    grid-template-columns: 1fr;
+  }
+}

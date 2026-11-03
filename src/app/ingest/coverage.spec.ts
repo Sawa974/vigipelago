@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gapDuration, gapsWithin, lastCoveredBefore, mergeCoverage } from './coverage';
+import { gapDuration, gapsWithin, lastCoveredBefore, mergeCoverage, sessionEndAt } from './coverage';
 
 const M = 60_000;
 
@@ -69,5 +69,32 @@ describe('lastCoveredBefore', () => {
 
   it('renvoie null si rien n a jamais ete couvert avant', () => {
     expect(lastCoveredBefore([{ from: 40 * M, to: 50 * M }], 10 * M)).toBeNull();
+  });
+});
+
+describe('sessionEndAt', () => {
+  it('ferme une session coupee a son dernier paquet, pas a la detection de la coupure', () => {
+    expect(sessionEndAt(1_000, 50_000, 140_000)).toBe(50_000);
+  });
+
+  it('ne remonte jamais avant le debut de la session', () => {
+    expect(sessionEndAt(60_000, 59_000, 140_000)).toBe(60_000);
+  });
+
+  it('prend maintenant si aucun paquet n a ete recu', () => {
+    expect(sessionEndAt(60_000, null, 140_000)).toBe(140_000);
+  });
+
+  it('fait apparaitre la coupure dans la couverture', () => {
+    const end = sessionEndAt(0, 10 * 60_000, 20 * 60_000);
+    const cov = mergeCoverage(
+      [
+        { startedAt: 0, endedAt: end, lastHeartbeatAt: 20 * 60_000 },
+        { startedAt: 25 * 60_000, endedAt: null, lastHeartbeatAt: 25 * 60_000 },
+      ],
+      30 * 60_000,
+    );
+    expect(lastCoveredBefore(cov, 25 * 60_000)).toBe(10 * 60_000);
+    expect(gapDuration(cov, 0, 30 * 60_000)).toBe(15 * 60_000);
   });
 });

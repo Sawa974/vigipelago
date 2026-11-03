@@ -212,7 +212,7 @@ describe('buildLocationRows', () => {
     });
     expect(res.catalogueMissing).toBe(true);
     expect(res.tally.catalogueSize).toBeNull();
-    expect(res.rows.map((r) => r.name)).toEqual(['Emplacement 10']);
+    expect(res.rows.map((r) => r.name)).toEqual(['Location 10']);
     expect(res.rows[0].unresolved).toBe(true);
     expect(res.tally.remaining).toBe(3);
   });
@@ -293,7 +293,7 @@ describe('contenu des emplacements', () => {
     });
     expect(res.rows.find((r) => r.name === 'Link Bedroom')!.content).toMatchObject({
       dstName: 'Slot 9',
-      itemName: 'Objet 777',
+      itemName: 'Item 777',
       itemUnresolved: true,
     });
   });

@@ -125,7 +125,7 @@ describe('buildItemRows', () => {
       includeMissing: true,
     });
     const orphan = res.rows.find((r) => r.id === 999)!;
-    expect(orphan.name).toBe('Objet 999');
+    expect(orphan.name).toBe('Item 999');
     expect(orphan.unresolved).toBe(true);
     expect(res.rows.at(-1)).toBe(orphan);
     expect(res.tally).toMatchObject({ received: 1, missing: 5 });
@@ -141,7 +141,7 @@ describe('buildItemRows', () => {
     });
     expect(res.catalogueMissing).toBe(true);
     expect(res.tally.missing).toBeNull();
-    expect(res.rows.map((r) => r.name)).toEqual(['Objet 101']);
+    expect(res.rows.map((r) => r.name)).toEqual(['Item 101']);
   });
 
   it('un rattrapage sans contenu resolu n’efface pas la classe deja connue', () => {
@@ -285,7 +285,7 @@ describe('provenance des objets recus', () => {
     });
     expect(res.rows[0].sources[0]).toMatchObject({
       playerName: 'Slot 7',
-      locationName: 'Emplacement 42',
+      locationName: 'Location 42',
       unresolved: true,
     });
   });

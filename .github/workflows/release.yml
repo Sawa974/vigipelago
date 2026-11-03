@@ -1,0 +1,38 @@
+# Cree la Release GitHub d'un tag v*, avec pour notes la section de CHANGELOG.md de cette version.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # Pour un tag pousse avant ce workflow : Actions > Release > Run workflow.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag existant, par exemple v0.10
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      # Le CHANGELOG de main, qui connait aussi les versions anterieures a son ajout.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Notes depuis CHANGELOG.md
+        run: |
+          version="${TAG#v}"
+          awk -v v="$version" '$0 == "## " v { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::Aucune section '## $version' dans CHANGELOG.md"
+            exit 1
+          fi
+      - name: Creer la Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG" --title "${TAG#v}" --notes-file notes.md --verify-tag

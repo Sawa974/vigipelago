@@ -1,4 +1,5 @@
 import type { ApEvent } from '../db/db';
+import { DEFAULT_FALLBACK_NAMES, type FallbackNames } from './fallback-names';
 
 /** Aligne sur `MAX_COMBINED_SERIES` du cumule. */
 export const FLOW_ROW_LIMIT = 8;
@@ -32,6 +33,8 @@ export interface FlowsInput {
   inbound: readonly ApEvent[];
   slot: number;
   names: ReadonlyMap<number, string>;
+  /** Absent : les noms par defaut, en anglais. */
+  fallback?: FallbackNames;
 }
 
 export function buildFlows(input: FlowsInput): Flows {
@@ -53,8 +56,8 @@ export function buildFlows(input: FlowsInput): Flows {
   }
 
   return {
-    sent: toRows(sentBy, input.names),
-    received: toRows(receivedFrom, input.names),
+    sent: toRows(sentBy, input.names, input.fallback ?? DEFAULT_FALLBACK_NAMES),
+    received: toRows(receivedFrom, input.names, input.fallback ?? DEFAULT_FALLBACK_NAMES),
     sentTotal: sum(sentBy),
     receivedTotal: sum(receivedFrom),
     sentPartners: sentBy.size,
@@ -69,12 +72,16 @@ function sum(m: ReadonlyMap<number, number>): number {
   return n;
 }
 
-function toRows(counts: ReadonlyMap<number, number>, names: ReadonlyMap<number, string>): FlowRow[] {
+function toRows(
+  counts: ReadonlyMap<number, number>,
+  names: ReadonlyMap<number, string>,
+  fallback: FallbackNames,
+): FlowRow[] {
   const total = sum(counts);
   const sorted = [...counts.entries()].sort(
     (a, b) =>
       b[1] - a[1] ||
-      (names.get(a[0]) ?? `Slot ${a[0]}`).localeCompare(names.get(b[0]) ?? `Slot ${b[0]}`, 'fr'),
+      (names.get(a[0]) ?? fallback.slot(a[0])).localeCompare(names.get(b[0]) ?? fallback.slot(b[0])),
   );
 
   const share = (n: number) => (total ? n / total : 0);
@@ -82,7 +89,7 @@ function toRows(counts: ReadonlyMap<number, number>, names: ReadonlyMap<number, 
   if (sorted.length <= FLOW_ROW_LIMIT + 1) {
     return sorted.map(([slot, count]) => ({
       slot,
-      name: names.get(slot) ?? `Slot ${slot}`,
+      name: names.get(slot) ?? fallback.slot(slot),
       count,
       share: share(count),
       players: 1,
@@ -95,7 +102,7 @@ function toRows(counts: ReadonlyMap<number, number>, names: ReadonlyMap<number, 
   return [
     ...head.map(([slot, count]) => ({
       slot,
-      name: names.get(slot) ?? `Slot ${slot}`,
+      name: names.get(slot) ?? fallback.slot(slot),
       count,
       share: share(count),
       players: 1,

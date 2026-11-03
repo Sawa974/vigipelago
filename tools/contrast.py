@@ -84,7 +84,8 @@ def contraste(a: str, b: str) -> float:
 
 BLOC = re.compile(
     r"(:root(?:\[data-theme='([a-z0-9-]+)'\])?(?:\[data-polarite='([a-z]+)'\])?|\.viz)"
-    r"\s*\{(.*?)\n\}",
+    # Jusqu'a l'accolade : le `.theme-scope[...]` de l'apercu double chaque selecteur.
+    r"[^{]*\{(.*?)\n\}",
     re.S,
 )
 DECL = re.compile(r'--([a-z0-9-]+)\s*:\s*([^;]+);')
@@ -118,6 +119,9 @@ def verdict(valeur: float, seuil: float) -> str:
 
 def main() -> int:
     blocs = lire_blocs(STYLES)
+    if not blocs:
+        print(f'Aucun bloc de jetons lu dans {STYLES} : le format des selecteurs a change.')
+        return 2
     base = dict(blocs[0][2])
     # Le jeu de couleurs de sens de chaque polarite, applique avant le decor du theme.
     polarites = {pol: d for nom, pol, d in blocs if pol and not nom}

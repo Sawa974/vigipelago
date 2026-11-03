@@ -299,17 +299,21 @@
 }
 .items li {
   display: grid;
-  grid-template-columns: 1.1rem 1fr 2.2rem 4.6rem;
+  grid-template-columns: 1.1rem 1fr 2.2rem var(--when, 4.6rem);
   align-items: baseline;
   gap: 0.4rem;
   padding: 0.12rem 0.3rem;
   border-radius: 3px;
 }
 .items.locs li {
-  grid-template-columns: 1fr 4.6rem;
+  grid-template-columns: 1fr var(--when, 4.6rem);
 }
 .items.sends li {
-  grid-template-columns: 1.1rem minmax(0, 1fr) 3.6rem;
+  grid-template-columns: 1.1rem minmax(0, 1fr) var(--when-s, 3.6rem);
+}
+:host(.h12) {
+  --when: 5.8rem;
+  --when-s: 5.4rem;
 }
 
 .pair {

@@ -1,6 +1,7 @@
 import type { ApEvent } from '../db/db';
 import { itemClassOf, type ItemClass } from '../protocol/item-class';
 import { filterChecklist, type ChecklistView } from './checklist';
+import { DEFAULT_FALLBACK_NAMES, type FallbackNames } from './fallback-names';
 
 /** `missing` vient du catalogue du jeu, pas de la seed : une borne large, jamais un X/Y. */
 export type ItemStatus = 'received' | 'hinted' | 'missing';
@@ -50,6 +51,8 @@ export interface ItemRowsInput {
   /** Par slot, le catalogue de SON jeu : un emplacement se nomme chez lui. */
   locationCatalogues: ReadonlyMap<number, Record<number, string>>;
   playerNames: ReadonlyMap<number, string>;
+  /** Absent : les noms par defaut, en anglais. */
+  fallback?: FallbackNames;
 }
 
 export interface ItemRowsResult {
@@ -60,6 +63,7 @@ export interface ItemRowsResult {
 
 export function buildItemRows(input: ItemRowsInput): ItemRowsResult {
   const { events, slot, catalogue, includeMissing, locationCatalogues, playerNames } = input;
+  const fallback = input.fallback ?? DEFAULT_FALLBACK_NAMES;
 
   const counts = new Map<number, number>();
   const flags = new Map<number, number | null>();
@@ -74,9 +78,9 @@ export function buildItemRows(input: ItemRowsInput): ItemRowsResult {
     const table = placed ? locationCatalogues.get(e.srcSlot!) : undefined;
     return {
       slot: placed ? e.srcSlot : null,
-      playerName: placed ? (playerNames.get(e.srcSlot!) ?? `Slot ${e.srcSlot}`) : null,
+      playerName: placed ? (playerNames.get(e.srcSlot!) ?? fallback.slot(e.srcSlot!)) : null,
       locationId: placed ? e.locationId : null,
-      locationName: placed ? (table?.[e.locationId!] ?? `Emplacement ${e.locationId}`) : null,
+      locationName: placed ? (table?.[e.locationId!] ?? fallback.location(e.locationId!)) : null,
       unresolved: placed ? table?.[e.locationId!] === undefined : false,
       ts: e.ts,
       approx: e.tsPrecision === 'approx',
@@ -122,7 +126,7 @@ export function buildItemRows(input: ItemRowsInput): ItemRowsResult {
     copies += count;
     rows.push({
       id,
-      name: nameOf(catalogue, id),
+      name: nameOf(catalogue, id, fallback),
       status: 'received',
       count,
       unresolved: catalogue?.[id] === undefined,
@@ -137,7 +141,7 @@ export function buildItemRows(input: ItemRowsInput): ItemRowsResult {
     if (counts.has(id)) continue;
     rows.push({
       id,
-      name: nameOf(catalogue, id),
+      name: nameOf(catalogue, id, fallback),
       status: 'hinted',
       count: 0,
       unresolved: catalogue?.[id] === undefined,
@@ -169,7 +173,7 @@ export function buildItemRows(input: ItemRowsInput): ItemRowsResult {
   rows.sort(
     (a, b) =>
       Number(a.unresolved) - Number(b.unresolved) ||
-      a.name.localeCompare(b.name, 'fr', { numeric: true }) ||
+      a.name.localeCompare(b.name, undefined, { numeric: true }) ||
       a.id - b.id,
   );
 
@@ -189,8 +193,8 @@ export function buildItemRows(input: ItemRowsInput): ItemRowsResult {
   };
 }
 
-function nameOf(catalogue: Record<number, string> | null, id: number): string {
-  return catalogue?.[id] ?? `Objet ${id}`;
+function nameOf(catalogue: Record<number, string> | null, id: number, fallback: FallbackNames): string {
+  return catalogue?.[id] ?? fallback.item(id);
 }
 
 function classOf(f: number | null | undefined): ItemClass | 'unknown' | null {

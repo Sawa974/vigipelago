@@ -16,6 +16,7 @@ import type { Translate } from '../i18n/translate';
 import Dexie from 'dexie';
 import { ApSessionService } from '../core/ap-session.service';
 import { durationLabel } from '../core/duration';
+import { usesTwelveHours } from '../select/date-format';
 import { db, type ApEvent, type SlotStats } from '../db/db';
 import { Dialog } from './dialog';
 import { isGoalReached, resolveSlotStatus } from '../ingest/client-status';
@@ -71,6 +72,8 @@ const DAY_MS = 24 * 3600_000;
 const GAP_BAND_PX = 0;
 /** En dessous, la seconde de deux graduations voisines est retiree. */
 const TICK_MIN_GAP_PX = 34;
+/** `09:05 PM` tient environ 46 px a 10 px de corps. */
+const TICK_MIN_GAP_12H_PX = 48;
 /** Dans l'ordre d'affichage : le choix des colonnes ne reordonne pas. Le nom est toujours la. */
 const COMPACT_COLUMNS = [
   { key: 'pct', label: 'st.col.pct', num: true },
@@ -353,7 +356,7 @@ export class Dashboard {
         slot,
         x: this.x(ts),
         color: colors.get(slot) ?? null,
-        title: this.t('st.goal.mark', { name: names.get(slot) ?? `Slot ${slot}`, time: this.i18n.datetime(ts) }),
+        title: this.t('st.goal.mark', { name: names.get(slot) ?? this.t('name.slot', { slot }), time: this.i18n.datetime(ts) }),
       }))
       .sort((a, b) => a.x - b.x);
   });
@@ -442,7 +445,7 @@ export class Dashboard {
           title: this.t('st.gap', {
             from: this.i18n.datetime(g.from),
             to: this.i18n.datetime(g.to),
-            duration: durationLabel(g.to - g.from),
+            duration: durationLabel(g.to - g.from, this.t),
           }),
         })),
   );
@@ -456,18 +459,17 @@ export class Dashboard {
     const out: Tick[] = [];
     let lastDay = '';
     let lastX = -Infinity;
+    const gapPx = usesTwelveHours(this.i18n.dateStyle()) ? TICK_MIN_GAP_12H_PX : TICK_MIN_GAP_PX;
 
     for (let t = Math.ceil(w.from / step) * step; t < w.to; t += step) {
       if (inGap(sc, t)) continue;
       const x = this.x(t);
-      if (x - lastX < TICK_MIN_GAP_PX) continue;
-      const d = new Date(t);
-      const day = `${d.getDate()}/${d.getMonth() + 1}`;
+      if (x - lastX < gapPx) continue;
+      const day = this.i18n.day(t);
       if (step >= DAY_MS) {
         out.push({ x, time: day, date: null });
       } else {
-        const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-        out.push({ x, time: hm, date: dated && day !== lastDay ? day : null });
+        out.push({ x, time: this.i18n.clock(t), date: dated && day !== lastDay ? day : null });
       }
       lastDay = day;
       lastX = x;
@@ -500,14 +502,14 @@ export class Dashboard {
     return this.deaths()
       .bySlot.map((d) => ({
         ...d,
-        name: names.get(d.slot) ?? `Slot ${d.slot}`,
+        name: names.get(d.slot) ?? this.t('name.slot', { slot: d.slot }),
         why: this.t(DEATH_KNOWLEDGE_LABEL[d.knowledge]),
       }))
       .sort(
         (a, b) =>
           Number(a.count === null) - Number(b.count === null) ||
           (b.count ?? 0) - (a.count ?? 0) ||
-          a.name.localeCompare(b.name, 'fr'),
+          a.name.localeCompare(b.name),
       );
   });
 
@@ -533,7 +535,7 @@ export class Dashboard {
     return this.activity().map((lane, i) => ({
       slot: lane.slot,
       y: top + i * (this.laneHeight + this.laneGap),
-      name: players[i]?.name ?? `Slot ${lane.slot}`,
+      name: players[i]?.name ?? this.t('name.slot', { slot: lane.slot }),
       checks: lane.checks,
       unplaced: lane.unplaced,
       rects: lane.runs.map((r) => ({
@@ -541,7 +543,7 @@ export class Dashboard {
         // Une plage de duree nulle reste visible.
         w: Math.max(2, this.x(r.to) - this.x(r.from)),
         title:
-          this.t('st.run', { name: players[i]?.name ?? '', duration: durationLabel(r.to - r.from), count: r.checks }) +
+          this.t('st.run', { name: players[i]?.name ?? '', duration: durationLabel(r.to - r.from, this.t), count: r.checks }) +
           `\n${this.i18n.datetime(r.from)} → ${this.i18n.datetime(r.to)}`,
       })),
     }));
@@ -619,7 +621,7 @@ export class Dashboard {
       });
       return {
         slot,
-        name: bySlot.get(slot) ?? `Slot ${slot}`,
+        name: bySlot.get(slot) ?? this.t('name.slot', { slot }),
         color: colorOf(slot, index),
         d: parts.join(' '),
         endX,

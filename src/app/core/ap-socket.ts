@@ -42,6 +42,7 @@ export class ApSocket {
   private opens = 0;
   private everOnline = false;
   private openUrl: string | null = null;
+  private heardAt: number | null = null;
 
   /** Faux par defaut, sinon l'ecran reste bloque sur une tentative que rien n'interrompt. */
   autoRetry = false;
@@ -54,6 +55,11 @@ export class ApSocket {
   /** Le schema qui a abouti : `ws://` ou `wss://`, selon le serveur. */
   get url(): string | null {
     return this.openUrl;
+  }
+
+  /** Dernier paquet recu : une coupure ne se constate qu'apres le delai du keepalive. */
+  get lastHeardAt(): number | null {
+    return this.heardAt;
   }
 
   constructor(private readonly handlers: ApSocketHandlers) {}
@@ -119,6 +125,8 @@ export class ApSocket {
     try {
       ws = new WebSocket(url);
     } catch (e) {
+      // Refusee par le navigateur avant tout essai : l'autre schema, sinon on retente celle-ci sans fin.
+      this.schemeIndex++;
       this.scheduleRetry(String(e));
       return;
     }
@@ -135,6 +143,7 @@ export class ApSocket {
     };
 
     ws.onmessage = (ev) => {
+      this.heardAt = Date.now();
       let parsed: unknown;
       try {
         parsed = JSON.parse(ev.data as string);

@@ -59,6 +59,11 @@ export function lastCoveredBefore(coverage: Interval[], t: number): number | nul
   return best;
 }
 
+/** La fin d'une session coupee : son dernier paquet, jamais avant son debut ni apres maintenant. */
+export function sessionEndAt(startedAt: number, lastHeardAt: number | null, now: number): number {
+  return Math.min(now, Math.max(startedAt, lastHeardAt ?? now));
+}
+
 export function gapDuration(coverage: Interval[], from: number, to: number): number {
   return gapsWithin(coverage, from, to).reduce((sum, g) => sum + (g.to - g.from), 0);
 }

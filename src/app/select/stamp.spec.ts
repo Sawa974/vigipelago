@@ -21,24 +21,28 @@ describe('shortStamp', () => {
   const now = at(2026, 10, 18, 15, 0);
 
   it("rend l'heure pour un instant du jour", () => {
-    const s = shortStamp(at(2026, 10, 18, 9, 5), now, 'fr-FR');
+    const s = shortStamp(at(2026, 10, 18, 9, 5), now, { order: 'auto', time: 'auto', lang: 'fr-FR' });
     expect(s.isDay).toBe(false);
     expect(s.text).toBe('09:05');
   });
 
   it('rend le jour pour un instant d un autre jour', () => {
-    const s = shortStamp(at(2026, 10, 17, 23, 50), now, 'fr-FR');
+    const s = shortStamp(at(2026, 10, 17, 23, 50), now, { order: 'auto', time: 'auto', lang: 'fr-FR' });
     expect(s.isDay).toBe(true);
     expect(s.text).toBe('17/10');
   });
 
-  it("suit l'ordre des chiffres de la langue du lecteur, sans reglage", () => {
+  it("suit l'ordre des chiffres de la langue en automatique", () => {
     const d = at(2026, 10, 17, 12);
-    expect(shortStamp(d, now, 'fr-FR').text).toBe('17/10');
-    expect(shortStamp(d, now, 'en-US').text).toBe('10/17');
+    expect(shortStamp(d, now, { order: 'auto', time: 'auto', lang: 'fr-FR' }).text).toBe('17/10');
+    expect(shortStamp(d, now, { order: 'auto', time: 'auto', lang: 'en-US' }).text).toBe('10/17');
+  });
+
+  it("impose l'ordre choisi", () => {
+    expect(shortStamp(at(2026, 10, 17, 12), now, { order: 'md', time: 'auto', lang: 'fr-FR' }).text).toBe('10/17');
   });
 
   it('garde le jour pour un instant d une autre annee', () => {
-    expect(shortStamp(at(2025, 12, 31, 18), now, 'fr-FR')).toEqual({ text: '31/12', isDay: true });
+    expect(shortStamp(at(2025, 12, 31, 18), now, { order: 'auto', time: 'auto', lang: 'fr-FR' })).toEqual({ text: '31/12', isDay: true });
   });
 });
