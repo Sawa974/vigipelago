@@ -1,3 +1,4 @@
+import { wellFormed } from './archive-guards';
 import type {
   ApEvent,
   CachedGamePackage,
@@ -144,6 +145,11 @@ export function parseArchive(text: string): ParsedArchive {
         key: 'ndjson.unknownType',
         params: { type: String(record.t) },
       });
+      return;
+    }
+
+    if (!wellFormed(record)) {
+      out.problems.push({ line: lineNo, kind: 'error', key: 'ndjson.badShape', params: { type: record.t } });
       return;
     }
 

@@ -185,6 +185,15 @@ export class VigipelagoDb extends Dexie {
     this.version(6).stores({
       wikiNames: null,
     });
+
+    // Chaque index coute une ecriture par `put` ; seuls restent ceux qu'une requete interroge.
+    this.version(7).stores({
+      events: '++id, &dedupKey, [roomId+ts], [roomId+srcSlot+ts], [roomId+dstSlot+ts], [roomId+kind+ts]',
+      sessions: '++id, roomId',
+      rooms: 'roomId',
+      dataPackages: 'game',
+      profiles: '++id, targetKey',
+    });
   }
 }
 

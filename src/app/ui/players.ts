@@ -41,7 +41,7 @@ import { usesTwelveHours } from '../select/date-format';
 
 const RELOAD_THROTTLE_MS = 15_000;
 
-export const ITEM_ROW_LIMIT = 1000;
+const ITEM_ROW_LIMIT = 1000;
 
 type PresenceKind = SlotPresenceView['state'] | 'none';
 

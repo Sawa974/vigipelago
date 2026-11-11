@@ -25,7 +25,9 @@
   "lang.err.bad-code": "lang.code est absent ou n'est pas un code de langue (de, es, pt-br…).",
   "lang.err.no-name": "lang.name est absent.",
   "lang.err.reserved-code": "Ce code est celui d'une langue livrée avec l'outil.",
+  "lang.err.too-big": "Ce fichier est trop gros pour un fichier de langue (1 Mo au plus).",
   "lang.added": "{name} ajoutée.",
+  "lang.notSaved": "Le navigateur a refusé de l'enregistrer (stockage plein ?) : elle disparaîtra au rechargement.",
   "lang.missing": {
     "one": "{count} clé absente, affichée en anglais",
     "other": "{count} clés absentes, affichées en anglais"
@@ -44,6 +46,7 @@
   "common.close": "Fermer",
   "common.unknown": "inconnu",
   "common.none": "aucun",
+  "home.otherTab": "{app} capture déjà dans un autre onglet. Fermez-le pour vous connecter ici ; la consultation hors connexion reste possible.",
   "name.slot": "Slot {slot}",
   "name.item": "Objet {id}",
   "name.location": "Emplacement {id}",
@@ -545,6 +548,7 @@
   "ndjson.noT": "enregistrement sans champ « t »",
   "ndjson.unknownType": "type inconnu « {type} », ligne ignorée",
   "ndjson.dupHeader": "en-tête en double",
+  "ndjson.badShape": "enregistrement « {type} » mal formé, ligne ignorée",
   "ndjson.noHeader": "en-tête absent : ce fichier n'est pas une archive {app}",
   "ndjson.noFormat": "en-tête sans numéro de format",
   "ndjson.newer": "format {format} produit par une version plus récente de {app} (cette version lit jusqu'au format {max})",
@@ -594,6 +598,7 @@
   "import.drop": "Déposez un fichier d'export ici, ou cliquez pour le choisir",
   "import.dropAgain": "Un autre fichier ? Déposez-le ici, ou cliquez",
   "import.unreadable": "Lecture impossible : {error}",
+  "import.tooBig": "Ce fichier fait {size} Mo ; la limite est de {max} Mo.",
   "import.match.same": "Même partie que celle ouverte : l'import la complète.",
   "import.match.otherKnown": "Une autre partie, déjà connue : elle sera complétée, sur l'accueil.",
   "import.match.other": "Une autre partie : elle sera disponible sur l'accueil.",

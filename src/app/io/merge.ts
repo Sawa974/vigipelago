@@ -281,3 +281,8 @@ export function sessionIdentity(s: {
 export function snapshotIdentity(s: { roomId: string; slot: number; ts: number }): string {
   return `${s.roomId}|${s.slot}|${s.ts}`;
 }
+
+/** Toutes les lignes comptent : une room absente de la liste echappe a la deduplication des snapshots. */
+export function archiveRoomIds(...groups: { roomId: string }[][]): string[] {
+  return [...new Set(groups.flat().map((r) => r.roomId))];
+}

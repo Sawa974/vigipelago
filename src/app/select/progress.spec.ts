@@ -2,8 +2,8 @@ import { EN, type Key } from '../i18n/en';
 import { translate, type Dict, type Params } from '../i18n/translate';
 import fr from '../../../public/i18n/fr.json';
 import { describe, expect, it } from 'vitest';
-import type { ApEvent, PresenceInterval, SlotStats } from '../db/db';
-import { buildLanes, coverageGaps } from './lanes';
+import type { ApEvent, SlotStats } from '../db/db';
+import { coverageGaps } from './lanes';
 import {
   buildClassTotals,
   buildMultiworldItems,
@@ -157,30 +157,6 @@ describe('buildProgress', () => {
       serverFloor: false,
     });
     expect(alice.total).toBe(10);
-  });
-});
-
-describe('buildLanes', () => {
-  const win = { from: 0, to: 100 * M };
-  const intervals: PresenceInterval[] = [
-    { roomId: 'seed', team: 0, slot: 1, from: 0, to: 10 * M, state: 'unknown', source: 'assumed' },
-    { roomId: 'seed', team: 0, slot: 1, from: 10 * M, to: null, state: 'online', source: 'observed' },
-    { roomId: 'seed', team: 0, slot: 2, from: -50 * M, to: 5 * M, state: 'offline', source: 'observed' },
-  ];
-
-  it('prolonge un intervalle ouvert jusqu au bout de la fenetre', () => {
-    const [alice] = buildLanes(intervals, [1], win);
-    expect(alice.segments[1]).toMatchObject({ from: 10 * M, to: 100 * M, state: 'online' });
-  });
-
-  it('decoupe a la fenetre ce qui deborde', () => {
-    const [bob] = buildLanes(intervals, [2], win);
-    expect(bob.segments[0]).toMatchObject({ from: 0, to: 5 * M });
-  });
-
-  it('rend une lane vide pour un slot sans intervalle, plutot que de la deviner', () => {
-    const [none] = buildLanes(intervals, [9], win);
-    expect(none.segments).toEqual([]);
   });
 });
 

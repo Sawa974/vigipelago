@@ -77,6 +77,7 @@
                   ></span
                 >
                 <span class="tcap">{{ tl.caption }}</span>
+                <span class="sr">{{ tl.note }}</span>
               </div>
             }
             @if (hintTile(); as tl) {
@@ -86,6 +87,7 @@
                 >
                 <span class="tcap">{{ tl.caption }}</span>
                 <span class="tcap tdet">{{ tl.detail }}</span>
+                <span class="sr">{{ tl.note }}</span>
               </div>
             }
             @if (deathTile(); as tl) {
@@ -96,6 +98,7 @@
                   ></span
                 >
                 <span class="tcap">{{ tl.caption }}</span>
+                <span class="sr">{{ tl.note }}</span>
               </div>
             }
           </div>
@@ -226,6 +229,7 @@
                 }
               </span>
             </h3>
+            <p class="sr">{{ t('pl.items.info') }}</p>
             <div class="filters">
               <input
                 type="search"
@@ -347,6 +351,7 @@
                 }
               </span>
             </h3>
+            <p class="sr">{{ locNote() }}</p>
 
             <div class="filters">
               <input
@@ -465,6 +470,7 @@
                 }
               </span>
             </h3>
+            <p class="sr">{{ t('pl.send.info') }}</p>
             <div class="filters">
               <input
                 type="search"

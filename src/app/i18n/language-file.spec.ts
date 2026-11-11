@@ -43,6 +43,13 @@ describe('readLanguageFile', () => {
     expect('a.hello' in r.dict).toBe(false);
   });
 
+  it('traite les noms herites d Object comme des cles inconnues', () => {
+    const r = ok('{"lang.code":"de","lang.name":"Deutsch","toString":"x","__proto__":{"a.hello":"Hallo"}}');
+    expect(r.unknown.sort()).toEqual(['__proto__', 'toString']);
+    expect(Object.getPrototypeOf(r.dict)).toBe(Object.prototype);
+    expect(r.dict['a.hello']).toBeUndefined();
+  });
+
   it('refuse un fichier qui n est pas un objet JSON', () => {
     expect(readLanguageFile('pas du json', ref, [])).toBe('not-json');
     expect(readLanguageFile('[1,2]', ref, [])).toBe('not-object');

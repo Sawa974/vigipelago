@@ -151,6 +151,36 @@ describe('parseArchive', () => {
     expect(parsed.problems[0]).toMatchObject({ kind: 'error', key: 'ndjson.dupHeader' });
   });
 
+  it('ecarte un enregistrement mal forme au lieu de l ecrire en base', () => {
+    const valid = encodeEvent(event(), 7, 'full');
+    const noKey = { ...valid, event: { ...valid.event, dedupKey: undefined } };
+    const text = [
+      encodeLine(header()),
+      '{"t":"event"}',
+      JSON.stringify(noKey),
+      JSON.stringify({ ...valid, event: { ...valid.event, ts: 'hier' } }),
+      encodeLine(valid),
+    ].join('\n');
+    const parsed = parseArchive(text);
+    expect(parsed.records).toHaveLength(1);
+    expect(parsed.problems.map((p) => [p.line, p.key])).toEqual([
+      [2, 'ndjson.badShape'],
+      [3, 'ndjson.badShape'],
+      [4, 'ndjson.badShape'],
+    ]);
+  });
+
+  it('ecarte une salle sans liste de joueurs et un en-tete sans liste de salles', () => {
+    const text = [
+      JSON.stringify({ ...header(), rooms: 'Seed42' }),
+      JSON.stringify({ t: 'room', room: { roomId: 'Seed42', players: null, firstSeenAt: 0, lastSeenAt: 0 } }),
+    ].join('\n');
+    const parsed = parseArchive(text);
+    expect(parsed.header).toBeNull();
+    expect(parsed.records).toHaveLength(0);
+    expect(parsed.problems).toHaveLength(2);
+  });
+
   it('supporte un fichier tronque en cours de ligne', () => {
     const full = lines([header(), encodeEvent(event(), 7, 'full')]);
     const truncated = full.slice(0, full.length - 20);

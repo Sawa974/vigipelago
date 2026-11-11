@@ -1,5 +1,7 @@
 import { Injectable, signal } from '@angular/core';
+import Dexie from 'dexie';
 import { db, type ConnectionProfile } from '../db/db';
+import { ROOM_SETTINGS_KEYS } from './ap-session.service';
 import {
   attachPlan,
   dedupeByRoom,
@@ -203,11 +205,11 @@ export class ProfileService {
     if (!profile.roomId) return { events: 0, sessions: 0, snapshots: 0 };
     const roomId = profile.roomId;
     const [events, sessions, snapshots] = await Promise.all([
-      db.events.where('[roomId+ts]').between([roomId, -Infinity], [roomId, Infinity]).count(),
+      db.events.where('[roomId+ts]').between([roomId, Dexie.minKey], [roomId, Dexie.maxKey]).count(),
       db.sessions.where('roomId').equals(roomId).count(),
       db.snapshots
         .where('[roomId+slot+ts]')
-        .between([roomId, -Infinity, -Infinity], [roomId, Infinity, Infinity])
+        .between([roomId, Dexie.minKey, Dexie.minKey], [roomId, Dexie.maxKey, Dexie.maxKey])
         .count(),
     ]);
     return { events, sessions, snapshots };
@@ -223,23 +225,19 @@ export class ProfileService {
         if (profile.id !== undefined) await db.profiles.delete(profile.id);
         if (!roomId) return;
 
-        await db.events.where('[roomId+ts]').between([roomId, -Infinity], [roomId, Infinity]).delete();
+        await db.events.where('[roomId+ts]').between([roomId, Dexie.minKey], [roomId, Dexie.maxKey]).delete();
         await db.sessions.where('roomId').equals(roomId).delete();
         await db.snapshots
           .where('[roomId+slot+ts]')
-          .between([roomId, -Infinity, -Infinity], [roomId, Infinity, Infinity])
+          .between([roomId, Dexie.minKey, Dexie.minKey], [roomId, Dexie.maxKey, Dexie.maxKey])
           .delete();
         await db.presence
           .where('[roomId+slot+from]')
-          .between([roomId, -Infinity, -Infinity], [roomId, Infinity, Infinity])
+          .between([roomId, Dexie.minKey, Dexie.minKey], [roomId, Dexie.maxKey, Dexie.maxKey])
           .delete();
         await db.slotStats.where('roomId').equals(roomId).delete();
         await db.rooms.delete(roomId);
-        await db.settings.bulkDelete([
-          `lastSweepAt:${roomId}`,
-          `textClientSlots:${roomId}`,
-          `sweepEnabled:${roomId}`,
-        ]);
+        await db.settings.bulkDelete(ROOM_SETTINGS_KEYS(roomId));
       },
     );
     await this.refresh();

@@ -10,12 +10,19 @@ export interface SessionBounds {
   lastHeartbeatAt: number;
 }
 
-/** Une session jamais fermee proprement s'arrete a son dernier battement, sauf la vivante. */
+/**
+ * Une session jamais fermee proprement s'arrete a son dernier battement, sauf la vivante : la plus recente des
+ * ouvertes, prolongee avant la fusion pour qu'une session close qui la chevauche ne la coupe pas.
+ */
 export function mergeCoverage(sessions: SessionBounds[], now: number): Interval[] {
+  let live: SessionBounds | null = null;
+  for (const s of sessions) {
+    if (s.endedAt === null && (live === null || s.startedAt > live.startedAt)) live = s;
+  }
   const raw = sessions
     .map((s) => ({
       from: s.startedAt,
-      to: s.endedAt ?? Math.max(s.lastHeartbeatAt, s.startedAt),
+      to: s.endedAt ?? Math.max(s.lastHeartbeatAt, s.startedAt, s === live ? now : -Infinity),
     }))
     .filter((i) => i.to >= i.from)
     .sort((a, b) => a.from - b.from);
@@ -28,10 +35,6 @@ export function mergeCoverage(sessions: SessionBounds[], now: number): Interval[
     } else {
       merged.push({ ...cur });
     }
-  }
-  const tail = merged[merged.length - 1];
-  if (tail && sessions.some((s) => s.endedAt === null && s.startedAt === tail.from)) {
-    tail.to = Math.max(tail.to, now);
   }
   return merged;
 }

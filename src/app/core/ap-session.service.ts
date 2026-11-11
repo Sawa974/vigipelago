@@ -11,7 +11,8 @@ import {
 } from '../db/db';
 import { gapDuration, lastCoveredBefore, mergeCoverage, sessionEndAt, type Interval } from '../ingest/coverage';
 import { PresenceTracker, type PresenceOp } from '../ingest/presence';
-import { ACTIVITY_KINDS, replayPresence } from '../ingest/rebuild-presence';
+import { rebuildPresenceRows } from '../ingest/presence-store';
+import { ACTIVITY_KINDS } from '../ingest/rebuild-presence';
 import { computeReceivedGaps, placedDedupKey } from '../ingest/received-items';
 import { computeHintGaps, hintDedupSuffix, hintsKey, parseHintsKey } from '../ingest/hints';
 import {
@@ -52,9 +53,10 @@ import {
   type ServerPacket,
 } from '../protocol/types';
 import { ApSocket, type SocketState } from './ap-socket';
+import { storedRows } from './bulk-insert';
 import { readHintCostReply, validateObservedHintCost } from '../select/hint-economy';
 
-export const APP_VERSION = '0.11.0';
+export const APP_VERSION = '0.12.0';
 
 /** Lignes gardees en memoire, pas l'etendue de la recherche. */
 export const FEED_LIMIT = 2000;
@@ -120,7 +122,15 @@ export interface SweepProgress {
 const LAST_SWEEP_KEY = (roomId: string) => `lastSweepAt:${roomId}`;
 /** Par room, absent = desactive : chaque passage se connecte sous le nom des autres slots. */
 export const SWEEP_ENABLED_KEY = (roomId: string) => `sweepEnabled:${roomId}`;
+
+export const ROOM_SETTINGS_KEYS = (roomId: string) => [
+  TEXT_CLIENT_KEY(roomId),
+  LAST_SWEEP_KEY(roomId),
+  SWEEP_ENABLED_KEY(roomId),
+];
+
 const SWEEP_DELAY_MS = 300;
+const CAPTURE_LOCK = 'vigipelago-capture';
 /** `idle` en est exclu : la deconnexion voulue ferme elle-meme, avec sa raison. */
 const DROPPED_STATES: ReadonlySet<SocketState> = new Set(['backoff', 'unreachable', 'fatal', 'connecting']);
 
@@ -137,8 +147,6 @@ const EMPTY_ROOM_META: RoomMeta = {
 function versionLabel(v: NetworkVersion | undefined): string | null {
   return v && typeof v.major === 'number' ? `${v.major}.${v.minor}.${v.build}` : null;
 }
-
-const FATAL_ERRORS = new Set(['InvalidSlot', 'InvalidGame', 'InvalidPassword', 'IncompatibleVersion']);
 
 @Injectable({ providedIn: 'root' })
 export class ApSessionService {
@@ -171,6 +179,8 @@ export class ApSessionService {
   readonly localRoomId = signal<string | null>(null);
   /** Aucune cible : se reconnecter viserait la derniere, peut-etre une autre partie. */
   readonly browseOnly = signal(false);
+  /** `false` : un autre onglet capture, celui-ci ne peut que consulter. `null` le temps de le savoir. */
+  readonly captureOwner = signal<boolean | null>(null);
   readonly autoRetry = signal<boolean>(false);
   /** Separes de `detail`, qui porte l'URL et ne doit jamais s'afficher. */
   readonly refusal = signal<readonly string[]>([]);
@@ -230,11 +240,12 @@ export class ApSessionService {
       onPackets: (packets) => this.handlePackets(packets),
     });
 
-    void this.finalizeOrphanRecords();
+    void this.claimCapture();
     window.addEventListener('beforeunload', () => void this.closeSession('unload'));
   }
 
   connect(params: ConnectionParams): void {
+    if (this.captureOwner() === false) return;
     this.params = params;
     this.browseOnly.set(false);
     this.forgetRoom();
@@ -1088,9 +1099,8 @@ export class ApSessionService {
   private onRefused(pkt: ConnectionRefusedPacket): void {
     const errors = pkt.errors ?? ['inconnu'];
     this.refusal.set(errors);
-    const msg = `Connexion refusee : ${errors.join(', ')}`;
-    if (errors.some((e) => FATAL_ERRORS.has(e))) this.socket.fail(msg);
-    else this.detail.set(msg);
+    // Le meme Connect serait refuse a nouveau, code inconnu compris : retenter ne fait que boucler.
+    this.socket.fail(`Connexion refusee : ${errors.join(', ')}`);
   }
 
   private async onRoomUpdate(pkt: RoomUpdatePacket): Promise<void> {
@@ -1264,28 +1274,14 @@ export class ApSessionService {
     const closed = sessions.filter((s) => s.endedAt !== null || s.lastHeartbeatAt > s.startedAt);
     if (!closed.length) return;
 
-    const events = await db.events
-      .where('[roomId+ts]')
-      .between([roomId, Dexie.minKey], [roomId, Dexie.maxKey])
-      .toArray();
-
-    const intervals = replayPresence({
+    const written = await rebuildPresenceRows({
       roomId,
       team: pkt.team,
       slots: pkt.players.map((p) => p.slot),
-      events: events.map((e) => ({ ts: e.ts, kind: e.kind, srcSlot: e.srcSlot, tags: e.tags })),
       sessions: closed,
       textClientSlots: this.textClientSlots,
     });
-
-    const oldIds = (await db.presence.filter((i) => i.roomId === roomId).toArray())
-      .map((i) => i.id!)
-      .filter((id) => id !== undefined);
-    await db.transaction('rw', db.presence, async () => {
-      await db.presence.bulkDelete(oldIds);
-      await db.presence.bulkAdd(intervals);
-    });
-    this.presenceRebuilt.set(intervals.length);
+    this.presenceRebuilt.set(written);
   }
 
   /** Chaque passage diffuse un Join et un Part a toute la room : seulement sur un trou. */
@@ -1480,12 +1476,15 @@ export class ApSessionService {
     if (!this.writeQueue.length) return;
     const batch = this.writeQueue;
     this.writeQueue = [];
+    let stored = batch;
     try {
       await db.events.bulkAdd(batch);
     } catch (e) {
       if (!(e instanceof Dexie.BulkError)) throw e;
+      // Une ligne refusee par `&dedupKey` est deja en base : l'afficher la ferait disparaitre au rechargement.
+      stored = storedRows(batch, e.failuresByPos);
     }
-    this.appendToFeed(batch);
+    if (stored.length) this.appendToFeed(stored);
   }
 
   /** Tout le journal, pas `feed`. Une reponse de plus que `SEARCH_LIMIT` signale la coupe. */
@@ -1597,6 +1596,34 @@ export class ApSessionService {
     this.tracker.end(endedAt);
     this.publishPresence();
     await db.sessions.update(id, { endedAt, closeReason: reason });
+  }
+
+  /**
+   * Un seul onglet capture : un second prendrait la session vivante du premier pour une orpheline et la fermerait.
+   * Le verrou se libere a la fermeture de l'onglet, et l'onglet suivant en file le recoit.
+   */
+  private async claimCapture(): Promise<void> {
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    if (locks) {
+      const hold = () => new Promise<never>(() => undefined);
+      const granted = await new Promise<boolean>((resolve) => {
+        void locks.request(CAPTURE_LOCK, { ifAvailable: true }, (lock) => {
+          resolve(lock !== null);
+          return lock ? hold() : undefined;
+        });
+      });
+      if (!granted) {
+        this.captureOwner.set(false);
+        await new Promise<void>((resolve) => {
+          void locks.request(CAPTURE_LOCK, () => {
+            resolve();
+            return hold();
+          });
+        });
+      }
+    }
+    this.captureOwner.set(true);
+    await this.finalizeOrphanRecords();
   }
 
   /** Un onglet ferme brutalement laisse session et intervalles ouverts. */

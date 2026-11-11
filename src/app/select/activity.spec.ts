@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ApEvent } from '../db/db';
-import { activeDuration, buildActivity } from './activity';
+import { buildActivity } from './activity';
 
 const M = 60_000;
 const WIN = { from: 0, to: 300 * M };
@@ -46,7 +46,6 @@ describe('buildActivity', () => {
   it('n etend jamais une plage au-dela du dernier check', () => {
     const [lane] = buildActivity([check(10 * M)], [1], WIN);
     expect(lane.runs[0]).toEqual({ from: 10 * M, to: 10 * M, checks: 1 });
-    expect(activeDuration(lane)).toBe(0);
   });
 
   it('ne place pas les checks rattrapes, mais les signale', () => {

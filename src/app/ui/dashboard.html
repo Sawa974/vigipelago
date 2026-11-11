@@ -23,14 +23,14 @@
               <span aria-hidden="true">{{ playing() ? '❚❚' : '▶' }}</span>
               <small aria-hidden="true">{{ playSeconds() }}s</small>
             </button>
-            <button type="button" class="more" (click)="speedMenuOpen.set(!speedMenuOpen())"
+            <button #speedBtn type="button" class="more" (click)="speedMenuOpen.set(!speedMenuOpen())"
                     aria-haspopup="menu" [attr.aria-expanded]="speedMenuOpen()"
                     [attr.aria-label]="t('st.speed')" [title]="t('st.speed.title')">
               <span aria-hidden="true">▾</span>
             </button>
           </div>
           @if (speedMenuOpen()) {
-            <ul class="speeds" role="menu">
+            <ul class="speeds" role="menu" [appMenuKeys]="speedBtn" (left)="speedMenuOpen.set(false)">
               @for (sp of playSpeeds; track sp) {
                 <li role="none">
                   <button type="button" role="menuitemradio" [attr.aria-checked]="sp === playSeconds()"
@@ -145,6 +145,7 @@
         {{ t('st.periods') }}
         <span class="info" [title]="t('st.periods.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
       </h3>
+      <p class="sr">{{ t('st.periods.info') }}</p>
       @if (unplacedActivity()) {
         <p class="sub warn" [title]="t('st.periods.unplaced.title')">
           {{ t('st.periods.unplaced', { count: unplacedActivity() }) }}
@@ -202,6 +203,7 @@
         {{ t('st.byClass') }}
         <span class="info" [title]="t('st.classTotals.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
       </h3>
+      <p class="sr">{{ t('st.classTotals.info') }}</p>
       @if (classTotals(); as tk) {
         @if (tk.total) {
           <p class="sub">
@@ -248,6 +250,7 @@
         {{ t('st.deaths') }}
         <span class="info" [title]="t('st.deaths.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
       </h3>
+      <p class="sr">{{ t('st.deaths.info') }}</p>
 
       @if (!anyDeathLink()) {
         <p class="sub warn" [title]="t('st.deaths.noTag.title')">
@@ -367,6 +370,7 @@
         {{ t('st.cumul') }}
         <span class="info" [title]="t('st.cumul.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
       </h3>
+      <p class="sr">{{ t('st.cumul.info') }}</p>
       <div class="segmented filter" role="group" [attr.aria-label]="t('st.cumul.filter')">
         <button type="button" [class.on]="itemClass() === 'all'" (click)="itemClass.set('all')">{{ t('pf.all') }}</button>
         @for (c of itemClasses; track c) {
@@ -435,6 +439,7 @@
         {{ t('st.hist') }}
         <span class="info" [title]="t('st.hist.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
       </h3>
+      <p class="sr">{{ t('st.hist.info') }}</p>
       <p class="sub">
         {{ t('st.hist.placed', { count: placedChecks() }) }}
         @if (unplacedChecks()) {
@@ -558,6 +563,7 @@
         {{ t('st.custom') }}
         <span class="info" [title]="t('st.custom.info')" aria-hidden="true"><svg class="ic"><use href="#i-info" /></svg></span>
       </h3>
+      <p class="sr">{{ t('st.custom.info') }}</p>
       @if (compactHidden()) {
         <p class="sub">
           {{ t('st.custom.top', { limit: compactRowLimit }) }}

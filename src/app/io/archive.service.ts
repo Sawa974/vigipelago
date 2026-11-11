@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core';
-import Dexie from 'dexie';
 import {
   db,
   type ApEvent,
@@ -11,8 +10,9 @@ import {
 } from '../db/db';
 import { APP_VERSION, TEXT_CLIENT_KEY } from '../core/ap-session.service';
 import { mergeCoverage } from '../ingest/coverage';
-import { replayPresence } from '../ingest/rebuild-presence';
+import { rebuildPresenceRows } from '../ingest/presence-store';
 import {
+  archiveRoomIds,
   estimateClockOffset,
   planMerge,
   sessionIdentity,
@@ -66,9 +66,9 @@ export interface InspectResult {
 @Injectable({ providedIn: 'root' })
 export class ArchiveService {
   /** `settings` n'est jamais exporte : `textClientSlots` ecraserait la declaration du receveur. */
-  async exportArchive(roomId: string | null, mode: ArchiveMode): Promise<ExportResult> {
-    const rooms = roomId === null ? await db.rooms.toArray() : await db.rooms.where({ roomId }).toArray();
-    const keep = (id: string) => roomId === null || id === roomId;
+  async exportArchive(roomId: string, mode: ArchiveMode): Promise<ExportResult> {
+    const rooms = await db.rooms.where({ roomId }).toArray();
+    const keep = (id: string) => id === roomId;
 
     const sessions = (await db.sessions.toArray()).filter((s) => keep(s.roomId));
     const events = (await db.events.toArray()).filter((e) => keep(e.roomId));
@@ -140,7 +140,12 @@ export class ArchiveService {
       }
     }
 
-    const roomIds = [...new Set([...rooms.map((r) => r.roomId), ...events.map((e) => e.event.roomId)])];
+    const roomIds = archiveRoomIds(
+      rooms,
+      events.map((e) => e.event),
+      snapshots.map((s) => s.snapshot),
+      stats,
+    );
 
     const localSessionsBefore = await db.sessions.toArray();
     const localEventRows = await db.events.filter((e) => roomIds.includes(e.roomId)).toArray();
@@ -292,34 +297,17 @@ export class ArchiveService {
     const room = await db.rooms.get(roomId);
     if (!room?.players?.length) return 0;
 
-    const sessions = (await db.sessions.toArray()).filter((s) => s.roomId === roomId);
+    const sessions = await db.sessions.where('roomId').equals(roomId).toArray();
     if (!sessions.length) return 0;
 
-    const events = await db.events
-      .where('[roomId+ts]')
-      .between([roomId, Dexie.minKey], [roomId, Dexie.maxKey])
-      .toArray();
-
     const declared = await db.settings.get(TEXT_CLIENT_KEY(roomId));
-    const textClientSlots = new Set((declared?.value as number[] | undefined) ?? []);
-
-    const intervals = replayPresence({
+    return rebuildPresenceRows({
       roomId,
       team: room.players[0].team ?? 0,
       slots: room.players.map((p) => p.slot),
-      events: events.map((e) => ({ ts: e.ts, kind: e.kind, srcSlot: e.srcSlot, tags: e.tags })),
       sessions,
-      textClientSlots,
+      textClientSlots: new Set((declared?.value as number[] | undefined) ?? []),
     });
-
-    const oldIds = (await db.presence.filter((i) => i.roomId === roomId).toArray())
-      .map((i) => i.id!)
-      .filter((id) => id !== undefined);
-    await db.transaction('rw', db.presence, async () => {
-      await db.presence.bulkDelete(oldIds);
-      await db.presence.bulkAdd(intervals);
-    });
-    return intervals.length;
   }
 }
 
@@ -359,12 +347,12 @@ function newExportId(): string {
   return `x${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function buildFilename(roomId: string | null, mode: ArchiveMode, at: number): string {
+function buildFilename(roomId: string, mode: ArchiveMode, at: number): string {
   const d = new Date(at);
   const stamp =
     `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}` +
     `-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
-  const room = roomId === null ? 'tout' : slug(roomId);
+  const room = slug(roomId);
   const suffix = mode === 'light' ? '-allege' : '';
   return `vigipelago-${room}-${stamp}${suffix}.ndjson`;
 }

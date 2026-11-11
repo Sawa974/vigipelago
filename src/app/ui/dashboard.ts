@@ -19,6 +19,7 @@ import { durationLabel } from '../core/duration';
 import { usesTwelveHours } from '../select/date-format';
 import { db, type ApEvent, type SlotStats } from '../db/db';
 import { Dialog } from './dialog';
+import { MenuKeys } from './menu-keys';
 import { isGoalReached, resolveSlotStatus } from '../ingest/client-status';
 import { mergeCoverage, type Interval } from '../ingest/coverage';
 import { buildActivity, type ActivityLane } from '../select/activity';
@@ -166,7 +167,7 @@ interface ActivityRect {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DecimalPipe, Dialog],
+  imports: [DecimalPipe, Dialog, MenuKeys],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',

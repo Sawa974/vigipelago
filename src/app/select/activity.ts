@@ -69,8 +69,3 @@ export function buildActivity(
     };
   });
 }
-
-/** Un minorant : une plage s'arrete a son dernier check. */
-export function activeDuration(lane: ActivityLane): number {
-  return lane.runs.reduce((sum, r) => sum + (r.to - r.from), 0);
-}

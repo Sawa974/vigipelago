@@ -38,7 +38,7 @@ export function readLanguageFile(
   const unknown: string[] = [];
   const invalid: string[] = [];
   for (const [key, value] of Object.entries(obj)) {
-    if (!(key in reference)) {
+    if (!Object.hasOwn(reference, key)) {
       unknown.push(key);
       continue;
     }
@@ -48,7 +48,7 @@ export function readLanguageFile(
     }
     dict[key] = value;
   }
-  const missing = Object.keys(reference).filter((k) => !(k in dict) && !invalid.includes(k));
+  const missing = Object.keys(reference).filter((k) => !Object.hasOwn(dict, k) &&!invalid.includes(k));
   return { code, name, dict: { ...dict, 'lang.code': code, 'lang.name': name }, missing, unknown, invalid };
 }
 

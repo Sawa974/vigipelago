@@ -3,24 +3,22 @@ export type Polarite = 'sombre' | 'claire';
 
 export interface Theme {
   readonly id: string;
-  readonly nom: string;
-  readonly evoque: string;
   readonly polarite: Polarite;
 }
 
 export const THEMES: readonly Theme[] = [
-  { id: '', nom: 'Ardoise', evoque: 'defaut', polarite: 'sombre' },
-  { id: 'foret-or', nom: 'Forêt et or', evoque: 'Zelda', polarite: 'sombre' },
-  { id: 'brique-cuivre', nom: 'Brique et cuivre', evoque: 'Metroid', polarite: 'sombre' },
-  { id: 'encre-magenta', nom: 'Encre et magenta', evoque: 'Hollow Knight', polarite: 'sombre' },
-  { id: 'mario', nom: 'Bleu et rouge', evoque: 'Mario', polarite: 'sombre' },
-  { id: 'mario-feu', nom: 'Rouge et blanc', evoque: 'Mario de feu', polarite: 'claire' },
-  { id: 'creme-azur', nom: 'Crème et azur', evoque: 'Zelda BOTW', polarite: 'claire' },
+  { id: '', polarite: 'sombre' },
+  { id: 'foret-or', polarite: 'sombre' },
+  { id: 'brique-cuivre', polarite: 'sombre' },
+  { id: 'encre-magenta', polarite: 'sombre' },
+  { id: 'mario', polarite: 'sombre' },
+  { id: 'mario-feu', polarite: 'claire' },
+  { id: 'creme-azur', polarite: 'claire' },
 ];
 
 export const THEME_KEY = 'vigipelago.theme';
 
-/** Pour l'amorcage de `index.html`, qui ne connait pas la liste des themes. */
+/** Pour l'amorcage de `public/theme-init.js`, qui ne connait pas la liste des themes. */
 export const POLARITE_KEY = 'vigipelago.polarite';
 
 /** Un `data-theme` sans regle CSS laisserait l'interface a moitie peinte. */

@@ -12,8 +12,8 @@ import {
 } from '../select/date-format';
 import { pickLanguage, translate, type Dict, type Params } from './translate';
 
-export const LANG_KEY = 'vigipelago.lang';
-export const IMPORTED_LANGS_KEY = 'vigipelago.langs';
+const LANG_KEY = 'vigipelago.lang';
+const IMPORTED_LANGS_KEY = 'vigipelago.langs';
 export const DATE_ORDER_KEY = 'vigipelago.dateOrder';
 export const TIME_FORMAT_KEY = 'vigipelago.timeFormat';
 
@@ -77,9 +77,10 @@ export class I18n {
     }
   }
 
-  addLanguage(code: string, name: string, dict: Dict): void {
+  /** Faux si le navigateur a refuse l'ecriture : la langue ne vaut que pour cette visite. */
+  addLanguage(code: string, name: string, dict: Dict): boolean {
     this.imported.update((all) => ({ ...all, [code]: { name, dict } }));
-    writeImported(this.imported());
+    return writeImported(this.imported());
   }
 
   async removeLanguage(code: string): Promise<void> {
@@ -155,10 +156,11 @@ function readImported(): Record<string, Imported> {
   }
 }
 
-function writeImported(all: Record<string, Imported>): void {
+function writeImported(all: Record<string, Imported>): boolean {
   try {
     localStorage.setItem(IMPORTED_LANGS_KEY, JSON.stringify(all));
+    return true;
   } catch {
-    /* stockage plein ou refuse : la langue reste pour cette visite */
+    return false;
   }
 }

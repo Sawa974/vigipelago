@@ -28,6 +28,31 @@ describe('mergeCoverage', () => {
     const cov = mergeCoverage([{ startedAt: 0, endedAt: null, lastHeartbeatAt: 10 * M }], 25 * M);
     expect(cov[0].to).toBe(25 * M);
   });
+
+  it('prolonge la session vivante meme quand une session close la chevauche', () => {
+    const cov = mergeCoverage(
+      [
+        { startedAt: 0, endedAt: 30 * M, lastHeartbeatAt: 30 * M },
+        { startedAt: 20 * M, endedAt: null, lastHeartbeatAt: 20 * M },
+      ],
+      60 * M,
+    );
+    expect(cov).toEqual([{ from: 0, to: 60 * M }]);
+  });
+
+  it('n etend que la plus recente des sessions ouvertes, l autre s arrete a son battement', () => {
+    const cov = mergeCoverage(
+      [
+        { startedAt: 0, endedAt: null, lastHeartbeatAt: 10 * M },
+        { startedAt: 40 * M, endedAt: null, lastHeartbeatAt: 40 * M },
+      ],
+      60 * M,
+    );
+    expect(cov).toEqual([
+      { from: 0, to: 10 * M },
+      { from: 40 * M, to: 60 * M },
+    ]);
+  });
 });
 
 describe('gapsWithin', () => {

@@ -303,3 +303,13 @@ dialog::backdrop {
   margin-left: 0.25rem;
   vertical-align: super;
 }
+
+/* Lu par les lecteurs d'ecran, masque a l'ecran. */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

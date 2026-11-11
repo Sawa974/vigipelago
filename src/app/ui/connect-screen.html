@@ -92,7 +92,7 @@
                   data-1p-ignore
                   [placeholder]="t('home.field.password.resume')"
                   [disabled]="busy()"
-                  autofocus
+                  appAutofocus
                 />
               </label>
               <button type="submit" class="go" [disabled]="busy()">
@@ -119,8 +119,8 @@
           }
 
           @if (confirmId() === p.id) {
-            <div class="confirm" role="alertdialog">
-              <p class="warn">{{ t('home.confirm', { name: label(p) }) }}</p>
+            <div class="confirm" role="group" [attr.aria-labelledby]="'confirm-' + p.id">
+              <p class="warn" role="alert" [id]="'confirm-' + p.id">{{ t('home.confirm', { name: label(p) }) }}</p>
               @if (confirmPreview(); as d) {
                 <ul class="tally">
                   <li>{{ t('home.tally.events', { count: d.events }) }}</li>
@@ -133,7 +133,7 @@
               }
               <div class="editacts">
                 <button type="button" class="danger" (click)="confirmDelete(p)">{{ t('home.deleteForever') }}</button>
-                <button type="button" class="ghost" (click)="cancelDelete()">{{ t('common.cancel') }}</button>
+                <button type="button" class="ghost" (click)="cancelDelete()" appAutofocus>{{ t('common.cancel') }}</button>
               </div>
             </div>
           }

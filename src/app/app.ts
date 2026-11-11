@@ -12,6 +12,7 @@ import { Dashboard } from './ui/dashboard';
 import { PlayersTab } from './ui/players';
 import { ConsoleTab } from './ui/console-tab';
 import { Dialog } from './ui/dialog';
+import { MenuKeys } from './ui/menu-keys';
 import { ThemeDialog } from './ui/theme-dialog';
 import { LanguageDialog } from './ui/language-dialog';
 import { download } from './core/download';
@@ -39,6 +40,8 @@ interface PartyInfo {
 }
 
 const IDLE_STATES = new Set(['idle', 'fatal', 'unreachable']);
+/** Le fichier est lu d'un bloc, puis double en memoire par le decoupage en lignes. */
+const MAX_ARCHIVE_BYTES = 300_000_000;
 
 const TABS = [
   { key: 'console', label: 'tabs.console' },
@@ -60,7 +63,7 @@ const STATE_LABELS: Record<string, Key> = {
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, Dashboard, PlayersTab, ConnectScreen, ConsoleTab, Dialog, ThemeDialog, LanguageDialog],
+  imports: [FormsModule, Dashboard, PlayersTab, ConnectScreen, ConsoleTab, Dialog, ThemeDialog, LanguageDialog, MenuKeys],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
   styleUrl: './app.css',
@@ -112,6 +115,7 @@ export class App {
   );
 
   protected readonly connectError = computed(() => {
+    if (this.ap.captureOwner() === false) return this.t('home.otherTab');
     if (this.ap.state() === 'unreachable' || this.ap.refusal().length) {
       // Jamais `ap.detail()` : il porte l'URL, et l'ecran peut etre en stream.
       const why = this.t(offlineMessage(this.ap.state(), this.ap.refusal()));
@@ -241,18 +245,7 @@ export class App {
   }
 
   protected async onExportProfile(p: ConnectionProfile): Promise<void> {
-    if (!p.roomId) return;
-    this.archiveBusy.set(true);
-    this.archiveNote.set(null);
-    try {
-      const res = await this.archive.exportArchive(p.roomId, this.exportMode());
-      download(res.blob, res.filename);
-      this.archiveNote.set(this.t('export.done', { file: res.filename, count: res.lines, size: formatBytes(res.blob.size, this.t) }));
-    } catch (err) {
-      this.archiveNote.set(this.t('export.failed', { error: String(err) }));
-    } finally {
-      this.archiveBusy.set(false);
-    }
+    if (p.roomId) await this.exportRoom(p.roomId);
   }
 
   protected disconnect(): void {
@@ -262,7 +255,10 @@ export class App {
 
   protected async doExport(): Promise<void> {
     const roomId = this.ap.roomId();
-    if (roomId === null) return;
+    if (roomId !== null) await this.exportRoom(roomId);
+  }
+
+  private async exportRoom(roomId: string): Promise<void> {
     this.archiveBusy.set(true);
     this.archiveNote.set(null);
     try {
@@ -320,6 +316,15 @@ export class App {
   /** Rien n'est ecrit en base ici. */
   private async readArchive(file: File): Promise<void> {
 
+    if (file.size > MAX_ARCHIVE_BYTES) {
+      this.pendingText = null;
+      this.fileName.set(file.name);
+      this.fileSummary.set(null);
+      this.fileReasons.set([
+        this.t('import.tooBig', { size: Math.ceil(file.size / 1e6), max: MAX_ARCHIVE_BYTES / 1e6 }),
+      ]);
+      return;
+    }
     this.archiveBusy.set(true);
     this.archiveNote.set(null);
     try {

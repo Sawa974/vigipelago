@@ -56,6 +56,7 @@
 
   <div class="menu-wrap">
     <button
+      #burger
       type="button"
       class="burger"
       (click)="menuOpen.set(!menuOpen())"
@@ -67,7 +68,7 @@
       <span aria-hidden="true">&#9776;</span>
     </button>
     @if (menuOpen()) {
-      <ul class="menu" role="menu">
+      <ul class="menu" role="menu" [appMenuKeys]="burger" (left)="menuOpen.set(false)">
         @if (!showConnect()) {
           <li role="none"><button type="button" role="menuitem" (click)="openMenuItem('export')">{{ t('menu.export') }}</button></li>
         }

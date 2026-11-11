@@ -66,6 +66,9 @@
   }
   @if (report(); as r) {
     <p class="ok" role="status">{{ t('lang.added', { name: r.name }) }}</p>
+    @if (unsaved()) {
+      <p class="err" role="alert">{{ t('lang.notSaved') }}</p>
+    }
     <ul class="tally">
       @if (r.missing.length) {
         <li>{{ t('lang.missing', { count: r.missing.length }) }}</li>

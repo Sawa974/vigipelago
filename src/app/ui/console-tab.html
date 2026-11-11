@@ -83,8 +83,8 @@
   }
 
   @if (pendingWarning(); as w) {
-    <div class="sayconfirm" role="alertdialog">
-      <p class="warn">{{ w }}</p>
+    <div class="sayconfirm" role="group" aria-labelledby="sayconfirm-msg">
+      <p class="warn" role="alert" id="sayconfirm-msg">{{ w }}</p>
       <p class="line"><code>{{ input() }}</code></p>
       <div class="sayacts">
         <button type="button" class="danger" (click)="sendLine()">{{ t('console.sendAnyway') }}</button>

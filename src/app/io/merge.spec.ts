@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ApEvent } from '../db/db';
 import {
+  archiveRoomIds,
   estimateClockOffset,
   isStableKey,
   MIN_OFFSET_SAMPLES,
@@ -323,6 +324,19 @@ describe('sessionIdentity', () => {
     expect(sessionIdentity(a)).toBe(sessionIdentity({ ...a }));
     expect(sessionIdentity(a)).not.toBe(sessionIdentity({ ...a, startedAt: 11 * M }));
     expect(sessionIdentity(a)).not.toBe(sessionIdentity({ ...a, connectedAsSlot: 'Bryn' }));
+  });
+});
+
+describe('archiveRoomIds', () => {
+  it('retient la room d un snapshot ou d un slotStats sans ligne room ni evenement', () => {
+    const R1 = '53474563874335540287';
+    const R2 = '80651550253117080590';
+    const R3 = '19283746501928374650';
+    expect(archiveRoomIds([{ roomId: R1 }], [{ roomId: R1 }], [{ roomId: R2 }], [{ roomId: R3 }])).toEqual([
+      R1,
+      R2,
+      R3,
+    ]);
   });
 });
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { EN } from '../i18n/en';
 import { THEMES, appliqueTheme, themeValide } from './theme';
 
 function porteur(initial?: string) {
@@ -27,10 +28,10 @@ describe('themeValide', () => {
     expect(themeValide('')).toBe('');
   });
 
-  it('chaque theme a un identifiant unique et un nom', () => {
+  it('chaque theme a un identifiant unique et un nom traduit', () => {
     const ids = THEMES.map((t) => t.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(THEMES.every((t) => t.nom.length > 0)).toBe(true);
+    expect(ids.filter((id) => !(`theme.name.${id || 'default'}` in EN))).toEqual([]);
   });
 
   it('le theme par defaut est sombre', () => {

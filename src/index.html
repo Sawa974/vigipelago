@@ -11,18 +11,10 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <!-- Pose le theme avant le premier rendu, sinon flash du theme par defaut ; cle = THEME_KEY de core/theme.ts. -->
-  <script>
-    try {
-      var r = document.documentElement;
-      var t = localStorage.getItem('vigipelago.theme');
-      if (t) r.setAttribute('data-theme', t);
-      // Sans la polarite, un theme clair s'afficherait un instant avec le jeu de couleurs
-      // sombre : texte clair sur fond clair.
-      if (localStorage.getItem('vigipelago.polarite') === 'claire')
-        r.setAttribute('data-polarite', 'claire');
-    } catch (e) {}
-  </script>
+  <!-- Les sockets visent le serveur Archipelago choisi : ws et wss restent ouverts vers tout hote. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'">
+  <!-- Pose le theme avant le premier rendu, sinon flash du theme par defaut. -->
+  <script src="theme-init.js"></script>
 </head>
 <body>
   <app-root></app-root>

@@ -4,6 +4,7 @@ import { DuplicateTargetError, ProfileService, type DeletionPreview } from '../c
 import { I18n } from '../i18n/i18n.service';
 import { labelOf } from '../core/profiles';
 import type { ConnectionProfile } from '../db/db';
+import { Autofocus } from './autofocus';
 
 /** Le mot de passe n'existe qu'ici : il n'est jamais memorise. */
 export interface ConnectRequest {
@@ -17,7 +18,7 @@ export interface ConnectRequest {
 /** L'ecran peut etre en stream : ne jamais y afficher l'hote ni le port d'une partie connue. */
 @Component({
   selector: 'app-connect-screen',
-  imports: [FormsModule],
+  imports: [FormsModule, Autofocus],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './connect-screen.html',
   styleUrl: './connect-screen.css',

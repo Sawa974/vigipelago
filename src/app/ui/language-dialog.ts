@@ -6,6 +6,9 @@ import { readLanguageFile, type LanguageFile } from '../i18n/language-file';
 import { clock, DATE_ORDERS, dayMonth, TIME_FORMATS, type DateOrder, type TimeFormat } from '../select/date-format';
 import { Dialog } from './dialog';
 
+/** Une traduction complete pese environ 40 Ko ; le localStorage plafonne vers 5 Mo pour tout le site. */
+const MAX_LANGUAGE_FILE_BYTES = 1024 * 1024;
+
 @Component({
   selector: 'app-language-dialog',
   imports: [Dialog],
@@ -38,6 +41,7 @@ export class LanguageDialog {
   protected readonly imported = computed(() => this.i18n.languages().filter((l) => !l.builtIn));
   protected readonly report = signal<LanguageFile | null>(null);
   protected readonly error = signal<Key | null>(null);
+  protected readonly unsaved = signal(false);
 
   constructor() {
     effect(() => {
@@ -47,6 +51,7 @@ export class LanguageDialog {
         this.time.set(this.i18n.timeFormat());
         this.report.set(null);
         this.error.set(null);
+        this.unsaved.set(false);
       }
     });
   }
@@ -68,12 +73,17 @@ export class LanguageDialog {
     if (!file) return;
     this.report.set(null);
     this.error.set(null);
+    this.unsaved.set(false);
+    if (file.size > MAX_LANGUAGE_FILE_BYTES) {
+      this.error.set('lang.err.too-big');
+      return;
+    }
     const result = readLanguageFile(await file.text(), EN, BUILT_IN_LANGUAGES);
     if (typeof result === 'string') {
       this.error.set(`lang.err.${result}`);
       return;
     }
-    this.i18n.addLanguage(result.code, result.name, result.dict);
+    this.unsaved.set(!this.i18n.addLanguage(result.code, result.name, result.dict));
     this.selected.set(result.code);
     this.report.set(result);
   }
