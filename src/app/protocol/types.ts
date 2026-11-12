@@ -23,7 +23,7 @@ export interface NetworkSlot {
 export interface NetworkItem {
   item: number;
   location: number;
-  /** Le monde de la location, sauf dans `ReceivedItems` ou c'est le monde d'origine. */
+  /** Le monde de la location, sauf dans `LocationInfo` ou c'est le destinataire. */
   player: number;
   /** Bitmask : 1 progression, 2 useful, 4 trap. */
   flags: number;

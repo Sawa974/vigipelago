@@ -24,7 +24,7 @@ export interface HintGap {
   itemFlags: number;
   entrance: string;
   dedupSuffix: string;
-  tsLower: number;
+  tsLower: number | null;
   tsUpper: number;
   /** Milieu des bornes : pour le tri, jamais affiche comme instant. */
   ts: number;
@@ -34,15 +34,15 @@ export interface HintGapsInput {
   team: number;
   hints: readonly Hint[];
   knownSuffixes: ReadonlySet<string>;
-  tsLower: number;
+  tsLower: number | null;
   tsUpper: number;
 }
 
 export function computeHintGaps(input: HintGapsInput): HintGap[] {
   const { team, hints, knownSuffixes } = input;
   const tsUpper = input.tsUpper;
-  const tsLower = Math.min(input.tsLower, tsUpper);
-  const ts = Math.round((tsLower + tsUpper) / 2);
+  const tsLower = input.tsLower === null ? null : Math.min(input.tsLower, tsUpper);
+  const ts = tsLower === null ? tsUpper : Math.round((tsLower + tsUpper) / 2);
 
   const seen = new Set<string>();
   const out: HintGap[] = [];

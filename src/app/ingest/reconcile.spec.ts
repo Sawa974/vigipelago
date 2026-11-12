@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { computeGapChecks, selectScoutTargets } from './reconcile';
 
 describe('computeGapChecks', () => {
+  it('sans borne basse, la garde inconnue et trie a la borne haute', () => {
+    const [g] = computeGapChecks({ checkedLocations: [10], knownLocationIds: new Set(), tsLower: null, tsUpper: 5000 });
+    expect(g).toEqual({ locationId: 10, tsLower: null, tsUpper: 5000, ts: 5000 });
+  });
+
   it('ne retient que les locations absentes du journal', () => {
     const gaps = computeGapChecks({
       checkedLocations: [10, 20, 30, 40],

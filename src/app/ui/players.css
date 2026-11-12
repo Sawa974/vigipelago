@@ -569,21 +569,6 @@
 .cseg {
   min-width: 2px;
 }
-.c-progression {
-  background: var(--class-progression);
-}
-.c-useful {
-  background: var(--class-useful);
-}
-.c-filler {
-  background: var(--class-filler);
-}
-.c-trap {
-  background: var(--class-trap);
-}
-.c-unknown {
-  background: var(--muted);
-}
 
 .legend {
   display: flex;

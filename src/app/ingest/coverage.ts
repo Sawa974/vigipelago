@@ -53,6 +53,15 @@ export function gapsWithin(coverage: Interval[], from: number, to: number): Inte
   return gaps.filter((g) => g.to > g.from);
 }
 
+/**
+ * Borne basse d'un check inconnu d'un slot lu en entier a `readAt` : l'ecoute voit tous les checks,
+ * il a donc eu lieu dans un temps non ecoute qui suit cette lecture. `null` sans lecture connue.
+ */
+export function unseenLowerBound(coverage: Interval[], readAt: number | null, now: number): number | null {
+  if (readAt === null) return null;
+  return gapsWithin(coverage, readAt, now)[0]?.from ?? readAt;
+}
+
 export function lastCoveredBefore(coverage: Interval[], t: number): number | null {
   let best: number | null = null;
   for (const c of coverage) {

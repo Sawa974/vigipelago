@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ApEvent } from '../db/db';
 import {
   archiveRoomIds,
+  closeImportedSession,
   estimateClockOffset,
   isStableKey,
   MIN_OFFSET_SAMPLES,
@@ -160,6 +161,14 @@ describe('planMerge — la regle dictee : une seule ligne par evenement', () => 
     expect(p.updates).toHaveLength(0);
   });
 
+  it('ne perd pas ce que notre approx savait et que son exact ignore', () => {
+    const mine = local({ tsPrecision: 'approx', ts: 15 * M, tsLower: 10 * M, tsUpper: 20 * M });
+    const p = plan([mine], [incoming({ ts: 17 * M, itemId: null, itemFlags: null, raw: null })]);
+    expect(p.counts.replaced).toBe(1);
+    expect(p.updates[0].changes).toMatchObject({ tsPrecision: 'exact', itemId: 77, itemFlags: 1 });
+    expect('raw' in p.updates[0].changes).toBe(false);
+  });
+
   it('ecrase notre approx par son exact, contenu compris', () => {
     const mine = local({ tsPrecision: 'approx', ts: 15 * M, tsLower: 10 * M, tsUpper: 20 * M, itemFlags: null });
     const p = plan([mine], [incoming({ ts: 17 * M, itemFlags: 4, text: 'Piege' })]);
@@ -176,6 +185,15 @@ describe('planMerge — la regle dictee : une seule ligne par evenement', () => 
     const p = plan([mine], [his]);
     expect(p.counts.narrowed).toBe(1);
     expect(p.updates[0].changes).toMatchObject({ tsLower: 12 * M, tsUpper: 18 * M, ts: 15 * M });
+  });
+
+  it('resserre une borne basse inconnue sans en inventer une', () => {
+    const mine = local({ tsPrecision: 'approx', ts: 20 * M, tsLower: null, tsUpper: 20 * M });
+    const tighter = plan([mine], [incoming({ tsPrecision: 'approx', ts: 18 * M, tsLower: null, tsUpper: 18 * M })]);
+    expect(tighter.counts.narrowed).toBe(1);
+    expect(tighter.updates[0].changes).toMatchObject({ tsLower: null, tsUpper: 18 * M, ts: 18 * M });
+    const bounded = plan([mine], [incoming({ tsPrecision: 'approx', ts: 15 * M, tsLower: 12 * M, tsUpper: 18 * M })]);
+    expect(bounded.updates[0].changes).toMatchObject({ tsLower: 12 * M, tsUpper: 18 * M, ts: 15 * M });
   });
 
   it('ne fait rien quand ses bornes sont plus larges que les notres', () => {
@@ -324,6 +342,23 @@ describe('sessionIdentity', () => {
     expect(sessionIdentity(a)).toBe(sessionIdentity({ ...a }));
     expect(sessionIdentity(a)).not.toBe(sessionIdentity({ ...a, startedAt: 11 * M }));
     expect(sessionIdentity(a)).not.toBe(sessionIdentity({ ...a, connectedAsSlot: 'Bryn' }));
+  });
+});
+
+describe('closeImportedSession', () => {
+  const open = { roomId: 'Seed42', startedAt: 10 * M, endedAt: null, lastHeartbeatAt: 25 * M, closeReason: 'live' };
+
+  it('ferme une session ouverte a son dernier signe de vie', () => {
+    expect(closeImportedSession(open)).toMatchObject({ endedAt: 25 * M, closeReason: 'crash-inferred' });
+  });
+
+  it('ne la ferme jamais avant son debut', () => {
+    expect(closeImportedSession({ ...open, lastHeartbeatAt: 5 * M }).endedAt).toBe(10 * M);
+  });
+
+  it('laisse une session fermee intacte', () => {
+    const closed = { ...open, endedAt: 20 * M, closeReason: 'user' };
+    expect(closeImportedSession(closed)).toBe(closed);
   });
 });
 

@@ -184,7 +184,7 @@ describe('buildMultiworldItems', () => {
     const progress = buildProgress(players, new Map([[1, stats(1, 30, 1)], [2, stats(2, 70, 1)]]), counts);
     const mw = buildMultiworldItems(progress, counts);
     expect(mw.placed).toBe(100);
-    expect(mw.found).toBe(2);
+    expect(mw.foundInKnown).toBe(2);
     expect(mw.ratio).toBeCloseTo(0.02);
     expect(mw.slotsUnknown).toBe(0);
     expect(mw.unplaced).toBe(1);
@@ -195,7 +195,6 @@ describe('buildMultiworldItems', () => {
     const mw = buildMultiworldItems(progress, counts);
     expect(mw.slotsUnknown).toBe(1);
     expect(mw.placed).toBe(30);
-    expect(mw.found).toBe(2);
     expect(mw.foundInKnown).toBe(1);
     expect(mw.ratio).toBeCloseTo(1 / 30);
   });

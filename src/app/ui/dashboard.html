@@ -9,7 +9,6 @@
   @if (!ap.roomId()) {
     <p class="empty">{{ t('st.empty') }}</p>
   } @else {
-    <!-- Avancement -->
     <section>
       <h3>{{ t('st.progress') }}</h3>
 
@@ -62,9 +61,9 @@
 
       @if (multiworld(); as mw) {
         <p class="sub">
-          {{ t('st.mw', { found: (mw.found | number: '1.0-0') ?? '', placed: mw.placed ? ((mw.placed | number: '1.0-0') ?? '') : '?' }) }}
+          {{ t('st.mw', { found: (mw.foundInKnown | number: '1.0-0') ?? '', placed: mw.placed ? ((mw.placed | number: '1.0-0') ?? '') : '?' }) }}
           @if (mw.ratio !== null) {
-            — <strong>{{ (mw.ratio * 100).toFixed(1) }} %</strong>
+            — <strong>{{ pct(mw.foundInKnown, mw.placed) }} %</strong>
           }
           @if (mw.slotsUnknown) {
             <span class="warn" [title]="t('st.mw.neverQueried.title')">
@@ -119,7 +118,7 @@
             <span class="a-cval bval">
               {{ p.checked }}<span class="muted">{{ p.total !== null ? ' / ' + p.total : '' }}</span>
             </span>
-            <span class="a-cpct bpct">{{ p.ratio !== null ? (p.ratio * 100).toFixed(1) + ' %' : '—' }}</span>
+            <span class="a-cpct bpct">{{ p.total ? pct(p.checked, p.total) + ' %' : '—' }}</span>
 
             <span class="a-sep" aria-hidden="true"></span>
 
@@ -222,7 +221,7 @@
                   <span class="bfill" [style.width.%]="(tk.byClass[c] / tk.total) * 100"></span>
                 </span>
                 <span class="a-cval bval">{{ tk.byClass[c] | number: '1.0-0' }}</span>
-                <span class="a-cpct bpct">{{ ((tk.byClass[c] / tk.total) * 100).toFixed(1) }} %</span>
+                <span class="a-cpct bpct">{{ pct(tk.byClass[c], tk.total) }} %</span>
               </li>
             }
             @if (tk.byClass.unknown) {
@@ -234,7 +233,7 @@
                   <span class="bfill" [style.width.%]="(tk.byClass.unknown / tk.total) * 100"></span>
                 </span>
                 <span class="a-cval bval">{{ tk.byClass.unknown | number: '1.0-0' }}</span>
-                <span class="a-cpct bpct">{{ ((tk.byClass.unknown / tk.total) * 100).toFixed(1) }} %</span>
+                <span class="a-cpct bpct">{{ pct(tk.byClass.unknown, tk.total) }} %</span>
               </li>
             }
           </ul>
@@ -352,7 +351,7 @@
                   @if (r.share === null) {
                     <span class="muted">—</span>
                   } @else {
-                    {{ (r.share * 100).toFixed(0) }} %
+                    {{ pct(r.count ?? 0, deaths().total) }} %
                   }
                 </td>
                 <td>{{ r.why }}</td>
@@ -372,9 +371,9 @@
       </h3>
       <p class="sr">{{ t('st.cumul.info') }}</p>
       <div class="segmented filter" role="group" [attr.aria-label]="t('st.cumul.filter')">
-        <button type="button" [class.on]="itemClass() === 'all'" (click)="itemClass.set('all')">{{ t('pf.all') }}</button>
+        <button type="button" [class.on]="itemClass() === 'all'" [attr.aria-pressed]="itemClass() === 'all'" (click)="itemClass.set('all')">{{ t('pf.all') }}</button>
         @for (c of itemClasses; track c) {
-          <button type="button" [class.on]="itemClass() === c" (click)="itemClass.set(c)">
+          <button type="button" [class.on]="itemClass() === c" [attr.aria-pressed]="itemClass() === c" (click)="itemClass.set(c)">
             {{ classGlyph[c] }} {{ t(classLabel[c]) }}
           </button>
         }
@@ -530,7 +529,7 @@
                 <td class="muted">{{ p.game }}</td>
                 <td class="num">{{ p.checked }}</td>
                 <td class="num">{{ p.total ?? '—' }}</td>
-                <td class="num">{{ p.ratio !== null ? (p.ratio * 100).toFixed(1) : '—' }}</td>
+                <td class="num">{{ p.total ? pct(p.checked, p.total) : '—' }}</td>
                 <td class="num">{{ p.approx }}</td>
                 <td class="num">{{ p.itemsReceived }}</td>
                 <td class="num">{{ p.byClass.progression }}</td>
@@ -557,7 +556,7 @@
       </div>
     </section>
 
-    <!-- Tableau personnalise -->
+    <!-- Synthese -->
     <section>
       <h3>
         {{ t('st.custom') }}
@@ -572,9 +571,9 @@
       }
       <p class="player">
         <button type="button" (click)="pickerOpen.set(true)">{{ t('st.custom.pick') }}</button>
-        <span class="muted">
-          {{ t('st.custom.shown', { count: compactShown().length + 1, max: compactMax }) }}
-        </span>
+        @if (compactColumns.length - compactShown().length; as n) {
+          <span class="muted">{{ t('st.custom.masked', { count: n }) }}</span>
+        }
       </p>
       <div class="tablewrap">
         <table class="compact">
@@ -594,6 +593,20 @@
                   <td [class.num]="c.num" [title]="c.title">
                     @if (c.text === '—') {
                       <span class="muted">—</span>
+                    } @else if (c.segments?.length) {
+                      <span class="gauge">
+                        <span class="gval">{{ c.text }}</span>
+                        <span class="stack">
+                          @for (seg of c.segments; track seg.cls) {
+                            <span [class]="seg.cls" [style.width.%]="seg.pct" [title]="seg.title"></span>
+                          }
+                        </span>
+                      </span>
+                    } @else if (c.fill !== undefined) {
+                      <span class="gauge">
+                        <span class="gval">{{ c.text }}</span>
+                        <span class="btrack"><span class="bfill" [class.share]="c.share" [style.width.%]="c.fill"></span></span>
+                      </span>
                     } @else {
                       {{ c.text }}
                     }
@@ -613,18 +626,13 @@
         (closed)="pickerOpen.set(false)"
       >
         <p class="sub">{{ t('st.custom.nameAlways') }}</p>
-        <!-- Sur sa propre ligne, sinon son apparition deforme le dialogue. -->
-        @if (compactFull()) {
-          <p class="sub warn">{{ t('st.custom.max', { max: compactMax }) }}</p>
-        }
         <ul class="cols">
           @for (c of compactColumns; track c.key) {
             <li>
-              <label [class.off]="!isColumnOn(c.key) && compactFull()">
+              <label>
                 <input
                   type="checkbox"
                   [checked]="isColumnOn(c.key)"
-                  [disabled]="!isColumnOn(c.key) && compactFull()"
                   (change)="toggleColumn(c.key)"
                 />
                 {{ t(c.label) }}

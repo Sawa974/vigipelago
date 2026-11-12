@@ -109,6 +109,8 @@ export class ApSocket {
   }
 
   markHandshakeDone(): void {
+    // Le plafond de tentatives vaut par coupure : cumule, une longue seance finirait sans aucun essai.
+    this.opens = 0;
     this.everOnline = true;
     this.setState('online');
     this.startKeepalive();

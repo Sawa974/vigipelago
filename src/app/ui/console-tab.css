@@ -25,6 +25,40 @@
 .toolbar input[type='search'] {
   width: 20rem;
 }
+.toolbar {
+  flex-wrap: wrap;
+}
+.cats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Meme geometrie que les autres groupes segmentes : l'encapsulation oblige a la redire ici. */
+.segmented {
+  display: flex;
+}
+.segmented button {
+  border-radius: 0;
+  border-right-width: 0;
+}
+.segmented button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.segmented button:last-child {
+  border-radius: 0 4px 4px 0;
+  border-right-width: 1px;
+}
+.segmented button.on {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.cats .clear {
+  border-color: transparent;
+  background: transparent;
+}
 .chk {
   display: flex;
   align-items: center;
@@ -137,6 +171,22 @@
 }
 .seg.entrance {
   color: var(--c-cyan);
+}
+/* Statuts de HintStatus, couleurs du client officiel (`status_colors` de NetUtils.py). */
+.seg.hint-status-0 {
+  color: var(--c-white);
+}
+.seg.hint-status-10 {
+  color: var(--c-blue);
+}
+.seg.hint-status-20 {
+  color: var(--bad-text);
+}
+.seg.hint-status-30 {
+  color: var(--c-magenta);
+}
+.seg.hint-status-40 {
+  color: var(--ok-text);
 }
 
 .seg.c-bold {
@@ -265,8 +315,6 @@ button.go:disabled {
   color: var(--muted);
 }
 
-.error,
-.note,
 .sayrefuse {
   margin: 0;
   padding: 0.4rem 0.75rem;

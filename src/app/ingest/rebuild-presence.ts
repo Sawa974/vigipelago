@@ -3,7 +3,8 @@ import { PresenceTracker, type PresenceOp } from './presence';
 
 // Rejeu session par session : entre deux, l'outil n'ecoutait pas, tout repart en `unknown`.
 
-export const ACTIVITY_KINDS = new Set(['item', 'chat', 'goal', 'release', 'collect', 'hint']);
+// Pas `hint` : son `srcSlot` detient la location, ce n'est pas forcement lui qui a demande.
+export const ACTIVITY_KINDS = new Set(['item', 'chat', 'goal', 'release', 'collect']);
 
 export interface ReplayEvent {
   ts: number;
@@ -11,6 +12,8 @@ export interface ReplayEvent {
   srcSlot: number | null;
   /** Absents sur un Part : le protocole ne les y met pas. */
   tags: string[] | null;
+  /** Heure au milieu d'un intervalle : elle placerait une presence a un instant invente. */
+  approx?: boolean;
 }
 
 export interface ReplaySession {
@@ -48,7 +51,7 @@ export function replayPresence(p: ReplayParams): PresenceInterval[] {
     while (cursor < events.length && events[cursor].ts < s.startedAt) cursor++;
     for (let i = cursor; i < events.length && events[i].ts <= end; i++) {
       const e = events[i];
-      if (e.srcSlot === null) continue;
+      if (e.srcSlot === null || e.approx) continue;
       if (e.kind === 'join') tracker.join(e.srcSlot, e.tags, e.ts);
       else if (e.kind === 'part') tracker.part(e.srcSlot, e.ts);
       else if (ACTIVITY_KINDS.has(e.kind)) tracker.activity(e.srcSlot, e.ts);

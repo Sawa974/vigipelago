@@ -11,8 +11,6 @@ export const CLIENT_STATUS = {
   goal: 30,
 } as const;
 
-export type ClientStatusValue = (typeof CLIENT_STATUS)[keyof typeof CLIENT_STATUS];
-
 export function clientStatusKey(team: number, slot: number): string {
   return `_read_client_status_${team}_${slot}`;
 }

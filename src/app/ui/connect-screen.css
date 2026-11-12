@@ -266,3 +266,15 @@ input {
   line-height: 1.5;
   color: var(--muted);
 }
+.ap {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+}
+.ap a {
+  color: var(--accent);
+  font-weight: 600;
+}

@@ -21,6 +21,22 @@
   } @else {
   <div class="toolbar">
     <input type="search" [(ngModel)]="filter" [placeholder]="t('console.filter')" />
+    <div class="cats" role="group" [attr.aria-label]="t('console.cats')">
+      <div class="segmented">
+        @for (c of categories; track c) {
+          <button type="button" [class.on]="checkedCategories().has(c)" [attr.aria-pressed]="checkedCategories().has(c)"
+                  (click)="toggleCategory(c)">{{ catLabel(c) }}</button>
+        }
+        @if (ownName(); as name) {
+          <button type="button" [class.on]="slotChecked()" [attr.aria-pressed]="slotChecked()"
+                  [title]="t('console.cat.slot.title', { name })" (click)="toggleSlot()">{{ name }}</button>
+        }
+      </div>
+      @if (filterActive()) {
+        <button type="button" class="clear" [title]="t('console.cats.clear')" [attr.aria-label]="t('console.cats.clear')"
+                (click)="clearFilter()">×</button>
+      }
+    </div>
     <label class="chk">
       <input type="checkbox" [(ngModel)]="autoScroll" /> {{ t('console.autoScroll') }}
     </label>
@@ -42,9 +58,11 @@
         <span
           class="ts"
           [title]="
-            ev.tsPrecision === 'approx'
-              ? t('console.approxTime', { from: time(ev.tsLower!), to: time(ev.tsUpper!) })
-              : ''
+            ev.tsPrecision !== 'approx'
+              ? ''
+              : ev.tsLower === null
+                ? t('console.approxTime.before', { to: time(ev.tsUpper!) })
+                : t('console.approxTime', { from: time(ev.tsLower), to: time(ev.tsUpper!) })
           "
           >{{ ev.tsPrecision === 'approx' ? '~' + time(ev.ts) : time(ev.ts) }}</span
         >
@@ -56,9 +74,13 @@
         </span>
       </div>
     } @empty {
-      @if (filter().trim()) {
-        <!-- La recherche va en base : ce message vaut pour toute la partie, pas pour les lignes affichees. -->
+      <!-- La recherche va en base : ce message vaut pour toute la partie, pas pour les lignes affichees. -->
+      @if (filter().trim() && filterActive()) {
+        <div class="empty">{{ t('console.noMatch.both', { filter: filter() }) }}</div>
+      } @else if (filter().trim()) {
         <div class="empty">{{ t('console.noMatch', { filter: filter() }) }}</div>
+      } @else if (filterActive()) {
+        <div class="empty">{{ t('console.noMatch.cats') }}</div>
       } @else {
         <div class="empty">{{ t('console.empty') }}</div>
       }

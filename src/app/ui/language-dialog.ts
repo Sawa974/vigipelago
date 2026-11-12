@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
 import { download } from '../core/download';
 import { EN, type Key } from '../i18n/en';
 import { BUILT_IN_LANGUAGES, I18n } from '../i18n/i18n.service';
@@ -44,15 +54,17 @@ export class LanguageDialog {
   protected readonly unsaved = signal(false);
 
   constructor() {
+    // Seule l'ouverture relit les reglages : retirer la langue active ne doit pas effacer les choix en cours.
     effect(() => {
-      if (this.open()) {
+      if (!this.open()) return;
+      untracked(() => {
         this.selected.set(this.i18n.lang());
         this.order.set(this.i18n.dateOrder());
         this.time.set(this.i18n.timeFormat());
         this.report.set(null);
         this.error.set(null);
         this.unsaved.set(false);
-      }
+      });
     });
   }
 

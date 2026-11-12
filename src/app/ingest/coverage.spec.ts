@@ -1,7 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { gapDuration, gapsWithin, lastCoveredBefore, mergeCoverage, sessionEndAt } from './coverage';
+import { gapDuration, gapsWithin, lastCoveredBefore, mergeCoverage, sessionEndAt, unseenLowerBound } from './coverage';
 
 const M = 60_000;
+
+describe('unseenLowerBound', () => {
+  const H = 60 * M;
+  // Lundi 0-10 h ecoute, trou de 10 a 12 h ; mardi 12-36 h ecoute ; trou depuis 36 h ; maintenant 40 h.
+  const cov = [
+    { from: 0, to: 10 * H },
+    { from: 12 * H, to: 36 * H },
+  ];
+
+  it('part du premier trou apres la derniere lecture du slot, pas du dernier trou', () => {
+    expect(unseenLowerBound(cov, 1 * H, 40 * H)).toBe(10 * H);
+    expect(lastCoveredBefore(cov, 40 * H)).toBe(36 * H);
+  });
+
+  it('suit une lecture plus recente', () => {
+    expect(unseenLowerBound(cov, 13 * H, 40 * H)).toBe(36 * H);
+  });
+
+  it('ne borne rien sans lecture connue', () => {
+    expect(unseenLowerBound(cov, null, 40 * H)).toBeNull();
+  });
+
+  it('retombe sur la lecture quand aucun trou ne la suit', () => {
+    expect(unseenLowerBound([{ from: 0, to: 40 * H }], 5 * H, 40 * H)).toBe(5 * H);
+  });
+});
 
 describe('mergeCoverage', () => {
   it('fusionne les sessions qui se chevauchent', () => {

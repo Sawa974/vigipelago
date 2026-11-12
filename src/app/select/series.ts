@@ -8,6 +8,8 @@ export interface TimeWindow {
   from: number;
   to: number;
   bucketMs: number;
+  /** Decalage du fuseau : sans lui, une tranche de 24 h commence a minuit UTC, pas a minuit local. */
+  offsetMs?: number;
 }
 
 const MINUTE = 60_000;
@@ -21,8 +23,13 @@ export function chooseBucket(spanMs: number, target = 60): number {
   return NICE_BUCKETS[NICE_BUCKETS.length - 1];
 }
 
+function bucketStart(ts: number, w: TimeWindow): number {
+  const off = w.offsetMs ?? 0;
+  return Math.floor((ts + off) / w.bucketMs) * w.bucketMs - off;
+}
+
 export function bucketStarts(w: TimeWindow): number[] {
-  const first = Math.floor(w.from / w.bucketMs) * w.bucketMs;
+  const first = bucketStart(w.from, w);
   const out: number[] = [];
   for (let t = first; t < w.to; t += w.bucketMs) out.push(t);
   return out;
@@ -80,7 +87,7 @@ export function checksHistogram(
       unplaced++;
       continue;
     }
-    const i = index.get(Math.floor(e.ts / w.bucketMs) * w.bucketMs);
+    const i = index.get(bucketStart(e.ts, w));
     if (i !== undefined) {
       values[i]++;
       placed++;
@@ -98,7 +105,7 @@ export function checksHistogram(
 }
 
 function overlapsWindow(e: ApEvent, w: TimeWindow): boolean {
-  const lo = e.tsLower ?? e.ts;
+  const lo = e.tsLower ?? -Infinity;
   const hi = e.tsUpper ?? e.ts;
   return hi >= w.from && lo < w.to;
 }
@@ -134,7 +141,7 @@ function cumulativeBySlot(
     if (slot === null || !wanted.has(slot)) continue;
     const at = e.tsPrecision === 'approx' ? (e.tsUpper ?? e.ts) : e.ts;
     if (at >= w.to) continue;
-    const i = at < w.from ? 0 : Math.round((Math.floor(at / w.bucketMs) * w.bucketMs - starts[0]) / w.bucketMs);
+    const i = at < w.from ? 0 : Math.round((bucketStart(at, w) - starts[0]) / w.bucketMs);
     const arr = perSlot.get(slot)!;
     if (i >= 0 && i < arr.length) arr[i]++;
   }

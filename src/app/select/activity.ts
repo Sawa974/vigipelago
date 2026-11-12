@@ -38,7 +38,7 @@ export function buildActivity(
     if (!list) continue;
 
     if (e.tsPrecision === 'approx') {
-      if ((e.tsUpper ?? e.ts) >= window.from && (e.tsLower ?? e.ts) < window.to) {
+      if ((e.tsUpper ?? e.ts) >= window.from && (e.tsLower ?? -Infinity) < window.to) {
         unplaced.set(e.srcSlot, (unplaced.get(e.srcSlot) ?? 0) + 1);
       }
       continue;

@@ -2,7 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 // Type seul : `profiles.ts` importe d'ici, le cycle n'existe pas a l'execution.
 import type { ConnectionProfile } from '../core/profiles';
 
-/** Le protocole AP n'envoie pas de timestamp : tout horodatage est celui de la reception. */
+/** Hors le `Bounce` DeathLink, qui porte son heure, le protocole n'horodate rien : l'heure est celle de la reception. */
 export type TsPrecision = 'exact' | 'approx';
 
 export type EventKind =
@@ -72,6 +72,7 @@ export interface Room {
   port: number;
   players: { team: number; slot: number; name: string; alias: string; game: string }[];
   firstSeenAt: number;
+  /** Ne pas lire : le protocole ne date pas l'ouverture d'une room (`RoomInfo.time` est l'heure du serveur). */
   createdAt: number | null;
   lastSeenAt: number;
   /** Un pourcentage du total d'emplacements du slot, pas des points. */

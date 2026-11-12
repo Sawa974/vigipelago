@@ -271,6 +271,11 @@ main.full {
   border-color: var(--accent);
   color: var(--text);
 }
+/* Le champ de fichier est masque : le contour passe sur la zone qui le porte. */
+.drop:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .drop.off {
   opacity: 0.5;
   pointer-events: none;
@@ -383,21 +388,13 @@ button.primary {
 }
 
 .error,
-.note,
-.sayrefuse {
+.note {
   margin: 0;
   padding: 0.4rem 0.75rem;
   font-size: 0.78rem;
 }
 
-.empty,
 .muted {
   color: var(--muted);
   font-size: 0.8rem;
-}
-.sayconfirm .warn {
-  margin: 0 0 0.35rem;
-  color: var(--warn-text);
-  font-size: 0.8rem;
-  line-height: 1.45;
 }

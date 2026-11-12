@@ -14,7 +14,7 @@ import { DecimalPipe } from '@angular/common';
 import { I18n } from '../i18n/i18n.service';
 import type { Translate } from '../i18n/translate';
 import Dexie from 'dexie';
-import { ApSessionService } from '../core/ap-session.service';
+import { ApSessionService, SUMMARY_HIDDEN_KEY } from '../core/ap-session.service';
 import { durationLabel } from '../core/duration';
 import { usesTwelveHours } from '../select/date-format';
 import { db, type ApEvent, type SlotStats } from '../db/db';
@@ -25,6 +25,7 @@ import { mergeCoverage, type Interval } from '../ingest/coverage';
 import { buildActivity, type ActivityLane } from '../select/activity';
 import { goalInstants } from '../select/goals';
 import { coverageGaps } from '../select/lanes';
+import { truncPercent } from '../select/percent';
 import {
   DEATH_KNOWLEDGE_LABEL,
   buildDeathTally,
@@ -64,6 +65,7 @@ import {
   cumulativeItemsBySlot,
   type CumulativeResult,
   type HistogramResult,
+  type TimeWindow,
 } from '../select/series';
 
 /** Au-dela, une neuvieme teinte ne serait plus lisible. */
@@ -75,26 +77,17 @@ const GAP_BAND_PX = 0;
 const TICK_MIN_GAP_PX = 34;
 /** `09:05 PM` tient environ 46 px a 10 px de corps. */
 const TICK_MIN_GAP_12H_PX = 48;
-/** Dans l'ordre d'affichage : le choix des colonnes ne reordonne pas. Le nom est toujours la. */
+/** Dans l'ordre d'affichage : masquer une colonne ne reordonne pas. Le nom est toujours la. */
 const COMPACT_COLUMNS = [
-  { key: 'pct', label: 'st.col.pct', num: true },
-  { key: 'checked', label: 'st.checks', num: true },
-  { key: 'total', label: 'st.total', num: true },
-  { key: 'approx', label: 'st.approx', num: true },
-  { key: 'items', label: 'st.itemsReceived', num: true },
-  { key: 'progression', label: 'st.cls.progression', num: true },
-  { key: 'useful', label: 'st.cls.useful', num: true },
-  { key: 'filler', label: 'st.cls.filler', num: true },
-  { key: 'trap', label: 'st.cls.trap', num: true },
-  { key: 'unknown', label: 'st.cls.unknown', num: true },
   { key: 'game', label: 'st.game', num: false },
+  { key: 'progress', label: 'st.col.progress', num: true },
+  { key: 'items', label: 'st.itemsReceived', num: true },
   { key: 'deaths', label: 'st.col.deaths', num: true },
 ] as const;
 
 type CompactKey = (typeof COMPACT_COLUMNS)[number]['key'];
+const COMPACT_KEYS: readonly CompactKey[] = COMPACT_COLUMNS.map((c) => c.key);
 
-/** Colonnes affichees, le nom compris. */
-const COMPACT_MAX_COLUMNS = 5;
 const COMPACT_ROW_LIMIT = 10;
 
 /** Duree d'une lecture complete de la frise, en secondes. */
@@ -202,6 +195,7 @@ export class Dashboard {
   protected readonly itemClasses = ITEM_CLASSES;
   protected readonly classLabel = ITEM_CLASS_LABEL;
   protected readonly classGlyph = ITEM_CLASS_GLYPH;
+  protected readonly pct = truncPercent;
   protected readonly width = signal(900);
 
   private readonly events = signal<ApEvent[]>([]);
@@ -228,6 +222,12 @@ export class Dashboard {
   );
 
   private readonly bucketMs = computed(() => chooseBucket(this.axisSpan()));
+
+  /** Decalage pris au debut de la fenetre : un changement d'heure en cours de partie decale d'une heure. */
+  private readonly bucketWindow = computed<TimeWindow>(() => {
+    const w = this.window();
+    return { ...w, bucketMs: this.bucketMs(), offsetMs: -new Date(w.from).getTimezoneOffset() * 60_000 };
+  });
 
   private readonly axisStep = computed(() => chooseBucket(this.axisSpan(), 8));
 
@@ -385,22 +385,17 @@ export class Dashboard {
   /* ---------- Tableau compact ---------- */
 
   protected readonly compactColumns = COMPACT_COLUMNS;
-  protected readonly compactMax = COMPACT_MAX_COLUMNS;
   protected readonly compactRowLimit = COMPACT_ROW_LIMIT;
-  protected readonly compactKeys = signal<readonly CompactKey[]>(['pct', 'deaths']);
+  protected readonly compactKeys = signal<readonly CompactKey[]>(COMPACT_KEYS);
   protected readonly pickerOpen = signal(false);
 
   protected readonly compactShown = computed(() =>
     COMPACT_COLUMNS.filter((c) => this.compactKeys().includes(c.key)),
   );
 
-  /** Le nom occupe toujours une colonne. */
-  protected readonly compactFull = computed(
-    () => this.compactKeys().length >= COMPACT_MAX_COLUMNS - 1,
-  );
-
   protected readonly compactRows = computed(() => {
     const deaths = this.deathBySlot();
+    const deathTotal = this.deaths().total;
     const shown = this.compactShown();
     return this.progress()
       .slice(0, COMPACT_ROW_LIMIT)
@@ -411,7 +406,7 @@ export class Dashboard {
         cells: shown.map((c) => ({
           key: c.key,
           num: c.num,
-          ...compactCell(c.key, p, deaths.get(p.slot), this.t),
+          ...compactCell(c.key, p, deaths.get(p.slot), deathTotal, this.t),
         })),
       }));
   });
@@ -426,12 +421,12 @@ export class Dashboard {
 
   protected toggleColumn(key: CompactKey): void {
     const cur = this.compactKeys();
-    if (cur.includes(key)) {
-      this.compactKeys.set(cur.filter((k) => k !== key));
-      return;
-    }
-    if (this.compactFull()) return;
-    this.compactKeys.set([...cur, key]);
+    const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key];
+    this.compactKeys.set(next);
+    const roomId = this.ap.roomId();
+    if (!roomId) return;
+    const hidden = COMPACT_KEYS.filter((k) => !next.includes(k));
+    void db.settings.put({ key: SUMMARY_HIDDEN_KEY(roomId), value: hidden });
   }
 
   /* ---------- Bande de couverture ---------- */
@@ -462,7 +457,9 @@ export class Dashboard {
     let lastX = -Infinity;
     const gapPx = usesTwelveHours(this.i18n.dateStyle()) ? TICK_MIN_GAP_12H_PX : TICK_MIN_GAP_PX;
 
-    for (let t = Math.ceil(w.from / step) * step; t < w.to; t += step) {
+    // Graduations sur l'heure locale, comme les tranches de l'histogramme.
+    const off = -new Date(w.from).getTimezoneOffset() * 60_000;
+    for (let t = Math.ceil((w.from + off) / step) * step - off; t < w.to; t += step) {
       if (inGap(sc, t)) continue;
       const x = this.x(t);
       if (x - lastX < gapPx) continue;
@@ -566,11 +563,10 @@ export class Dashboard {
   protected readonly plotHeight = 200;
 
   private readonly cumulative = computed<CumulativeResult>(() => {
-    const w = this.window();
     return cumulativeItemsBySlot(
       this.chartEvents(),
       this.ap.players().map((p) => p.slot),
-      { ...w, bucketMs: this.bucketMs() },
+      this.bucketWindow(),
       this.coverageAll(),
     );
   });
@@ -665,7 +661,7 @@ export class Dashboard {
     cumulativeDeathsBySlot(
       this.events(),
       this.ap.players().map((p) => p.slot),
-      { ...this.window(), bucketMs: this.bucketMs() },
+      this.bucketWindow(),
       this.coverageAll(),
     ),
   );
@@ -708,7 +704,7 @@ export class Dashboard {
   /* ---------- Histogramme des checks ---------- */
 
   private readonly histogram = computed<HistogramResult>(() =>
-    checksHistogram(this.events(), { ...this.window(), bucketMs: this.bucketMs() }, this.coverageAll()),
+    checksHistogram(this.events(), this.bucketWindow(), this.coverageAll()),
   );
 
   protected readonly unplacedChecks = computed(() => this.histogram().unplaced);
@@ -802,6 +798,18 @@ export class Dashboard {
     effect(() => {
       if (this.ap.sweep()?.running === false) void untracked(() => this.reload());
     });
+
+    effect(() => {
+      const roomId = this.ap.roomId();
+      if (roomId) void this.loadHiddenColumns(roomId);
+    });
+  }
+
+  private async loadHiddenColumns(roomId: string): Promise<void> {
+    const row = await db.settings.get(SUMMARY_HIDDEN_KEY(roomId));
+    if (this.ap.roomId() !== roomId) return;
+    const hidden = Array.isArray(row?.value) ? (row.value as unknown[]) : [];
+    this.compactKeys.set(COMPACT_KEYS.filter((k) => !hidden.includes(k)));
   }
 
   protected onScrub(e: Event): void {
@@ -885,38 +893,50 @@ export class Dashboard {
   }
 }
 
+interface CompactCell {
+  text: string;
+  title: string;
+  /** Largeur de jauge en pourcentage ; absente quand aucun denominateur n'est connu. */
+  fill?: number;
+  /** Part des morts entendues : une proportion entre joueurs, pas un avancement. */
+  share?: boolean;
+  segments?: ClassSegment[];
+}
+
 /** `—` et un `title` qui dit pourquoi la ou le chiffre manque : un manque n'est pas un zero. */
 function compactCell(
   key: CompactKey,
   p: SlotProgress,
   d: SlotDeaths | undefined,
+  deathTotal: number,
   t: Translate,
-): { text: string; title: string } {
+): CompactCell {
   const plain = (n: number) => ({ text: String(n), title: '' });
   switch (key) {
-    case 'pct':
-      return p.ratio === null
-        ? { text: '—', title: t('st.cell.noTotal') }
-        : { text: `${(p.ratio * 100).toFixed(0)} %`, title: '' };
+    case 'progress':
+      return p.ratio === null || p.total === null
+        ? { text: String(p.checked), title: t('st.cell.noTotal') }
+        : {
+            text: `${p.checked} / ${p.total} · ${truncPercent(p.checked, p.total)} %`,
+            title: '',
+            fill: p.ratio * 100,
+          };
     case 'deaths':
       if (!d || d.count === null) {
         return { text: '—', title: d ? t(DEATH_KNOWLEDGE_LABEL[d.knowledge]) : '' };
       }
-      return plain(d.count);
-    case 'checked':
-      return plain(p.checked);
-    case 'total':
-      return p.total === null
-        ? { text: '—', title: t('st.cell.never') }
-        : plain(p.total);
-    case 'approx':
-      return plain(p.approx);
+      return d.share === null
+        ? plain(d.count)
+        : {
+            text: `${d.count} · ${truncPercent(d.count, deathTotal)} %`,
+            title: t('st.cell.deathShare'),
+            fill: d.share * 100,
+            share: true,
+          };
     case 'items':
-      return plain(p.itemsReceived);
+      return { ...plain(p.itemsReceived), segments: classSegments(p.byClass, t) };
     case 'game':
       return { text: p.game, title: p.game };
-    default:
-      return plain(p.byClass[key]);
   }
 }
 

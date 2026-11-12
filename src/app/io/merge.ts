@@ -192,11 +192,12 @@ function mergeExisting(
         tsPrecision: 'exact',
         tsLower: null,
         tsUpper: null,
-        itemId: incoming.itemId,
-        itemFlags: incoming.itemFlags,
+        // Leur heure l'emporte, pas leurs manques : un export allege n'a plus de `raw`.
+        itemId: incoming.itemId ?? local.itemId,
+        itemFlags: incoming.itemFlags ?? local.itemFlags,
         text: incoming.text,
         segments: incoming.segments,
-        raw: incoming.raw,
+        ...(incoming.raw !== null ? { raw: incoming.raw } : {}),
       },
     };
   }
@@ -204,7 +205,8 @@ function mergeExisting(
   const lower = Math.max(local.tsLower ?? -Infinity, incoming.tsLower ?? -Infinity);
   const upper = Math.min(local.tsUpper ?? Infinity, incoming.tsUpper ?? Infinity);
 
-  if (!Number.isFinite(lower) || !Number.isFinite(upper) || lower > upper) {
+  // Une borne basse inconnue vaut -Infinity : seule la borne haute est exigee.
+  if (!Number.isFinite(upper) || lower > upper) {
     counts.conflicts++;
     return enrich(local, incoming, counts, {});
   }
@@ -216,10 +218,11 @@ function mergeExisting(
   }
 
   counts.narrowed++;
+  const known = Number.isFinite(lower);
   return enrich(local, incoming, counts, {
-    tsLower: lower,
+    tsLower: known ? lower : null,
     tsUpper: upper,
-    ts: Math.round((lower + upper) / 2),
+    ts: known ? Math.round((lower + upper) / 2) : upper,
   });
 }
 
@@ -276,6 +279,14 @@ export function sessionIdentity(s: {
   connectedAsSlot: string;
 }): string {
   return `${s.roomId}|${s.startedAt}|${s.connectedAsSlot}`;
+}
+
+/** Ouverte dans l'archive, elle passerait pour l'ecoute en cours et couvrirait jusqu'a maintenant. */
+export function closeImportedSession<
+  T extends { endedAt: number | null; lastHeartbeatAt: number; startedAt: number; closeReason: string },
+>(s: T): T {
+  if (s.endedAt !== null) return s;
+  return { ...s, endedAt: Math.max(s.lastHeartbeatAt, s.startedAt), closeReason: 'crash-inferred' };
 }
 
 export function snapshotIdentity(s: { roomId: string; slot: number; ts: number }): string {

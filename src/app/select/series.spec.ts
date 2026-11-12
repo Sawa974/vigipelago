@@ -154,6 +154,13 @@ describe('cumulativeItemsBySlot', () => {
   it('donne des colonnes alignees sur le pas de temps', () => {
     expect(bucketStarts({ from: 2 * M, to: 12 * M, bucketMs: 5 * M })).toEqual([0, 5 * M, 10 * M]);
   });
+
+  it('aligne une tranche de 24 h sur minuit local et non UTC', () => {
+    const H = 60 * M;
+    // UTC+4 : minuit local tombe a 20 h UTC la veille.
+    expect(bucketStarts({ from: 22 * H, to: 30 * H, bucketMs: 24 * H, offsetMs: 4 * H })).toEqual([20 * H]);
+    expect(bucketStarts({ from: 22 * H, to: 30 * H, bucketMs: 24 * H })).toEqual([0, 24 * H]);
+  });
 });
 
 describe('cumulativeDeathsBySlot', () => {

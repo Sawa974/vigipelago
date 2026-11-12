@@ -34,11 +34,12 @@ describe('matchesSearch', () => {
 });
 
 describe('mergeSearchWithLive', () => {
+  const hint = (e: ApEvent) => matchesSearch(e, 'hint');
   const base = [ev({ text: 'hint ancien', ts: 100 }), ev({ text: 'hint moins ancien', ts: 200 })];
 
   it('fait entrer une ligne vive arrivee apres la recherche', () => {
     const live = [ev({ text: 'hint tout neuf', ts: 300 })];
-    expect(mergeSearchWithLive(base, live, 'hint').map((e) => e.text)).toEqual([
+    expect(mergeSearchWithLive(base, live, hint).map((e) => e.text)).toEqual([
       'hint ancien',
       'hint moins ancien',
       'hint tout neuf',
@@ -47,12 +48,12 @@ describe('mergeSearchWithLive', () => {
 
   it('ignore une ligne vive qui ne correspond pas', () => {
     const live = [ev({ text: 'un objet quelconque', ts: 300 })];
-    expect(mergeSearchWithLive(base, live, 'hint')).toHaveLength(2);
+    expect(mergeSearchWithLive(base, live, hint)).toHaveLength(2);
   });
 
   it('ne double pas une ligne presente dans les deux sources', () => {
     const live = [base[1], ev({ text: 'hint tout neuf', ts: 300 })];
-    expect(mergeSearchWithLive(base, live, 'hint').map((e) => e.text)).toEqual([
+    expect(mergeSearchWithLive(base, live, hint).map((e) => e.text)).toEqual([
       'hint ancien',
       'hint moins ancien',
       'hint tout neuf',
@@ -61,7 +62,7 @@ describe('mergeSearchWithLive', () => {
 
   it('insere une ligne vive plus ancienne a sa place, et non a la fin', () => {
     const live = [ev({ text: 'hint intercale', ts: 150 })];
-    expect(mergeSearchWithLive(base, live, 'hint').map((e) => e.text)).toEqual([
+    expect(mergeSearchWithLive(base, live, hint).map((e) => e.text)).toEqual([
       'hint ancien',
       'hint intercale',
       'hint moins ancien',
@@ -70,7 +71,7 @@ describe('mergeSearchWithLive', () => {
 
   it('garde l’ordre de la base a instant egal', () => {
     const live = [ev({ text: 'hint simultane', ts: 200, dedupKey: 'autre' })];
-    expect(mergeSearchWithLive(base, live, 'hint').map((e) => e.text)).toEqual([
+    expect(mergeSearchWithLive(base, live, hint).map((e) => e.text)).toEqual([
       'hint ancien',
       'hint moins ancien',
       'hint simultane',
@@ -79,11 +80,11 @@ describe('mergeSearchWithLive', () => {
 
   it('sans requete, ne touche a rien', () => {
     const live = [ev({ text: 'hint tout neuf', ts: 300 })];
-    expect(mergeSearchWithLive(base, live, '')).toHaveLength(2);
+    expect(mergeSearchWithLive(base, live, null)).toHaveLength(2);
   });
 
   it('un instantane vide se remplit quand meme', () => {
     const live = [ev({ text: 'hint tout neuf', ts: 300 })];
-    expect(mergeSearchWithLive([], live, 'hint').map((e) => e.text)).toEqual(['hint tout neuf']);
+    expect(mergeSearchWithLive([], live, hint).map((e) => e.text)).toEqual(['hint tout neuf']);
   });
 });

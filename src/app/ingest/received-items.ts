@@ -24,7 +24,7 @@ export interface ReceivedItemGap {
   srcSlot: number | null;
   locationId: number | null;
   dedupKey: string;
-  tsLower: number;
+  tsLower: number | null;
   tsUpper: number;
   /** Milieu des bornes : pour le tri, jamais affiche comme instant. */
   ts: number;
@@ -37,15 +37,15 @@ export interface ReceivedItemsInput {
   items: readonly NetworkItem[];
   /** Toutes precisions confondues. */
   knownKeys: ReadonlySet<string>;
-  tsLower: number;
+  tsLower: number | null;
   tsUpper: number;
 }
 
 export function computeReceivedGaps(input: ReceivedItemsInput): ReceivedItemGap[] {
   const { roomId, team, dstSlot, items, knownKeys } = input;
   const tsUpper = input.tsUpper;
-  const tsLower = Math.min(input.tsLower, tsUpper);
-  const ts = Math.round((tsLower + tsUpper) / 2);
+  const tsLower = input.tsLower === null ? null : Math.min(input.tsLower, tsUpper);
+  const ts = tsLower === null ? tsUpper : Math.round((tsLower + tsUpper) / 2);
 
   const out: ReceivedItemGap[] = [];
   const seen = new Set<string>();

@@ -45,7 +45,7 @@ export interface LocationTally {
 export interface LocationRowsInput {
   events: readonly ApEvent[];
   slot: number;
-  /** Notre slot seulement : `db.snapshots` n'est ecrit qu'au `Connected`. */
+  /** Ecrit au `Connected` pour notre slot, au balayage reussi pour les autres. */
   snapshot?: readonly number[] | null;
   catalogue: Record<number, string> | null;
   total: number | null;

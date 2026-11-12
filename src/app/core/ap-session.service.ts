@@ -9,7 +9,14 @@ import {
   type Room,
   type SlotStats,
 } from '../db/db';
-import { gapDuration, lastCoveredBefore, mergeCoverage, sessionEndAt, type Interval } from '../ingest/coverage';
+import {
+  gapDuration,
+  lastCoveredBefore,
+  mergeCoverage,
+  sessionEndAt,
+  unseenLowerBound,
+  type Interval,
+} from '../ingest/coverage';
 import { PresenceTracker, type PresenceOp } from '../ingest/presence';
 import { rebuildPresenceRows } from '../ingest/presence-store';
 import { ACTIVITY_KINDS } from '../ingest/rebuild-presence';
@@ -22,7 +29,6 @@ import {
 } from '../ingest/client-status';
 import { computeGapChecks, selectScoutTargets } from '../ingest/reconcile';
 import { decideSweep, selectSweepTargets, type SweepDecision } from '../ingest/sweep';
-import { matchesSearch, normalizeQuery } from '../select/feed-search';
 import { candidateUrls } from './ap-url';
 import { scoutSlot } from './scout';
 import { itemClassCss, itemClassOf, ITEM_CLASS_GLYPH } from '../protocol/item-class';
@@ -56,7 +62,7 @@ import { ApSocket, type SocketState } from './ap-socket';
 import { storedRows } from './bulk-insert';
 import { readHintCostReply, validateObservedHintCost } from '../select/hint-economy';
 
-export const APP_VERSION = '0.12.0';
+export const APP_VERSION = '1.0.0';
 
 /** Lignes gardees en memoire, pas l'etendue de la recherche. */
 export const FEED_LIMIT = 2000;
@@ -76,31 +82,11 @@ export interface ConnectionParams {
 
 export type PresenceState = PresenceInterval['state'];
 
-/** `checked_locations` ne concerne que le slot connecte. */
-export interface ReconcileReport {
-  slot: number;
-  slotName: string;
-  received: number;
-  alreadyKnown: number;
-  created: number;
-  tsLower: number;
-  tsUpper: number;
-}
-
 export interface SlotPresenceView {
   state: PresenceState;
   players: number;
   observers: number;
   textClient: boolean;
-}
-
-export interface ItemRecoveryReport {
-  slot: number;
-  slotName: string;
-  received: number;
-  created: number;
-  tsLower: number;
-  tsUpper: number;
 }
 
 export const TEXT_CLIENT_KEY = (roomId: string) => `textClientSlots:${roomId}`;
@@ -123,10 +109,16 @@ const LAST_SWEEP_KEY = (roomId: string) => `lastSweepAt:${roomId}`;
 /** Par room, absent = desactive : chaque passage se connecte sous le nom des autres slots. */
 export const SWEEP_ENABLED_KEY = (roomId: string) => `sweepEnabled:${roomId}`;
 
+/** Les colonnes masquees et non les affichees : une colonne ajoutee plus tard apparait d'office. */
+export const SUMMARY_HIDDEN_KEY = (roomId: string) => `summaryHidden:${roomId}`;
+export const FEED_FILTER_KEY = (roomId: string) => `feedFilter:${roomId}`;
+
 export const ROOM_SETTINGS_KEYS = (roomId: string) => [
   TEXT_CLIENT_KEY(roomId),
   LAST_SWEEP_KEY(roomId),
   SWEEP_ENABLED_KEY(roomId),
+  SUMMARY_HIDDEN_KEY(roomId),
+  FEED_FILTER_KEY(roomId),
 ];
 
 const SWEEP_DELAY_MS = 300;
@@ -166,11 +158,7 @@ export class ApSessionService {
   readonly presence = signal<Record<number, SlotPresenceView>>({});
   readonly coverage = signal<Interval[]>([]);
   readonly gapTotalMs = signal<number>(0);
-  readonly reconcileReport = signal<ReconcileReport | null>(null);
   readonly lastError = signal<string>('');
-  readonly presenceRebuilt = signal<number>(0);
-  /** Notre slot seulement ; les autres sont dans `sweep()`. */
-  readonly itemRecovery = signal<ItemRecoveryReport | null>(null);
   readonly sweep = signal<SweepProgress | null>(null);
   /** Chaque passage est visible des autres joueurs. */
   readonly sweepEnabled = signal<boolean>(false);
@@ -200,7 +188,8 @@ export class ApSessionService {
   private sessionId: number | null = null;
   private sessionStartedAt = 0;
   private currentRoomId: string | null = null;
-  private roomCreatedAt: number | null = null;
+  /** Derniere lecture des hints : sous `SetNotify`, un hint nouveau est ne depuis. */
+  private hintsReadAt: number | null = null;
   /** Arrive au `RoomInfo`, avant que la room soit ecrite. */
   private roomHintCost: number | null = null;
   private readonly i18n = inject(I18n);
@@ -218,6 +207,8 @@ export class ApSessionService {
   /** Figee a la connexion : la couverture inclut deja cette session. */
   private gapTsLower: number | null = null;
   private sweepToken = 0;
+  /** Change a chaque oubli de la room : un `onConnected` en cours devient caduc. */
+  private connectGen = 0;
   private readonly presenceIds = new WeakMap<PresenceInterval, Promise<number>>();
 
   constructor() {
@@ -236,6 +227,11 @@ export class ApSessionService {
       onOpen: () => {
         this.resolverReady = false;
         this.pending = [];
+        // Une coupure passee inapercue : le dernier paquet de l'ancienne liaison est encore celui retenu.
+        if (this.sessionId !== null) {
+          const end = sessionEndAt(this.sessionStartedAt, this.socket.lastHeardAt, Date.now());
+          void this.guard('Session', this.closeSession('socket-error', end));
+        }
       },
       onPackets: (packets) => this.handlePackets(packets),
     });
@@ -266,21 +262,21 @@ export class ApSessionService {
   }
 
   forgetRoom(): void {
+    this.connectGen++;
     this.roomId.set(null);
     this.currentRoomId = null;
-    this.roomCreatedAt = null;
+    this.hintsReadAt = null;
     this.roomHintCost = null;
     this.roomCheckPoints = null;
     this.roomMeta = EMPTY_ROOM_META;
     this.players.set([]);
     this.ownSlot.set(null);
+    this.slotStatus.set(new Map());
     this.feed.set([]);
     this.eventCount.set(0);
     this.presence.set({});
     this.coverage.set([]);
     this.gapTotalMs.set(0);
-    this.reconcileReport.set(null);
-    this.itemRecovery.set(null);
     this.sweep.set(null);
     this.sweepEnabled.set(false);
     this.missingDataPackages.set([]);
@@ -411,11 +407,11 @@ export class ApSessionService {
 
   private async onRoomInfo(info: RoomInfoPacket): Promise<void> {
     if (!this.params) return;
+    // Une reconnexion peut tomber sur une autre partie : les slots de meme numero n'ont rien en commun.
+    if (this.currentRoomId !== info.seed_name) this.slotStatus.set(new Map());
     this.currentRoomId = info.seed_name;
     this.roomId.set(info.seed_name);
     void this.loadSweepEnabled(info.seed_name);
-    // `RoomInfo.time` est en secondes.
-    this.roomCreatedAt = typeof info.time === 'number' ? Math.round(info.time * 1000) : null;
     this.permissions.set(info.permissions ?? {});
     this.roomMeta = {
       serverVersion: versionLabel(info.version),
@@ -478,12 +474,14 @@ export class ApSessionService {
   }
 
   private async onConnected(pkt: ConnectedPacket): Promise<void> {
+    const gen = this.connectGen;
     const now = Date.now();
     const roomId = this.currentRoomId!;
     this.team = pkt.team;
 
     // Sinon la couverture de la session ouverte s'etend sur la coupure.
     await this.closeSession('socket-error');
+    if (gen !== this.connectGen) return;
 
     this.names.setPlayers(pkt.players, pkt.slot_info);
     this.names.ownSlot = pkt.slot;
@@ -506,7 +504,7 @@ export class ApSessionService {
         game: this.names.gameOf(p.slot) ?? '',
       })),
       firstSeenAt: existing?.firstSeenAt ?? now,
-      createdAt: this.roomCreatedAt ?? existing?.createdAt ?? null,
+      createdAt: null,
       lastSeenAt: now,
       hintCost: this.roomHintCost ?? existing?.hintCost ?? null,
       locationCheckPoints: this.roomCheckPoints ?? existing?.locationCheckPoints ?? null,
@@ -524,6 +522,8 @@ export class ApSessionService {
 
     this.textClientSlots = await this.loadTextClientSlots(roomId);
     await this.rebuildPresence(roomId, priorSessions, pkt);
+    // Une deconnexion pendant ces lectures laisserait une session vivante que rien n'ecoute.
+    if (gen !== this.connectGen) return;
 
     this.sessionStartedAt = now;
     this.sessionId = (await db.sessions.add({
@@ -535,6 +535,10 @@ export class ApSessionService {
       closeReason: 'live',
       appVersion: APP_VERSION,
     } satisfies CaptureSession)) as number;
+    if (gen !== this.connectGen) {
+      await this.closeSession('user');
+      return;
+    }
     this.startHeartbeat();
 
     this.hintPoints.set(pkt.hint_points ?? 0);
@@ -569,6 +573,10 @@ export class ApSessionService {
 
     await this.refreshCoverage(roomId, now);
     await this.loadHistory(roomId);
+    if (gen !== this.connectGen) {
+      await this.closeSession('user');
+      return;
+    }
     this.localRoomId.set(null);
     this.socket.markHandshakeDone();
     this.tryReleasePending();
@@ -584,7 +592,8 @@ export class ApSessionService {
 
   private async reconcile(pkt: ConnectedPacket, priorCoverage: Interval[], now: number): Promise<void> {
     const roomId = this.currentRoomId!;
-    const tsLower = lastCoveredBefore(priorCoverage, now) ?? this.roomCreatedAt ?? now;
+    // Le slot de connexion peut changer d'une seance a l'autre : la derniere ecoute ne suffit pas.
+    const tsLower = unseenLowerBound(priorCoverage, await this.lastFullRead(roomId, pkt.slot, now), now);
     // `ReceivedItems` arrive apres, quand la couverture inclut deja cette session.
     this.gapTsLower = tsLower;
 
@@ -597,15 +606,6 @@ export class ApSessionService {
       tsUpper: now,
     });
 
-    this.reconcileReport.set({
-      slot: pkt.slot,
-      slotName: this.names.playerName(pkt.slot),
-      received: pkt.checked_locations.length,
-      alreadyKnown: res.alreadyKnown,
-      created: res.created,
-      tsLower,
-      tsUpper: now,
-    });
     // Tout le non-resolu, pas les seuls ecarts crees : une ancienne ligne vide ne serait jamais reprise.
     const { resolved } = await this.locationIdsOf(roomId, pkt.slot);
     const wanted = selectScoutTargets({
@@ -624,7 +624,7 @@ export class ApSessionService {
     team: number;
     slot: number;
     checkedLocations: readonly number[];
-    tsLower: number;
+    tsLower: number | null;
     tsUpper: number;
     items?: Map<number, NetworkItem>;
   }): Promise<{ created: number; alreadyKnown: number; gapIds: number[] }> {
@@ -656,7 +656,7 @@ export class ApSessionService {
         sessionId: this.sessionId!,
         raw: { detectedAtReconnect: true, location: g.locationId },
         // Meme cle que l'evenement exact.
-        dedupKey: `${roomId}|i:${team}:${slot}:${g.locationId}`,
+        dedupKey: placedDedupKey(roomId, team, slot, g.locationId),
       };
     });
     for (const row of rows) this.renderApproxRow(row);
@@ -678,7 +678,7 @@ export class ApSessionService {
     const { roomId, team, slot, items } = params;
     let patched = 0;
     for (const [location, info] of items) {
-      const key = `${roomId}|i:${team}:${slot}:${location}`;
+      const key = placedDedupKey(roomId, team, slot, location);
       const row = await db.events.where('dedupKey').equals(key).first();
       // Une ligne exacte du direct fait foi.
       if (!row || row.id === undefined || row.itemId !== null || row.tsPrecision !== 'approx') continue;
@@ -729,7 +729,7 @@ export class ApSessionService {
     const slot = this.ownSlot();
     if (roomId === null || slot === null || pkt.index !== 0) return;
 
-    const tsLower = this.gapTsLower ?? this.roomCreatedAt ?? now;
+    const tsLower = this.gapTsLower;
     const res = await this.writeReceivedItems({
       roomId,
       team: this.team,
@@ -739,14 +739,6 @@ export class ApSessionService {
       tsUpper: now,
     });
 
-    this.itemRecovery.set({
-      slot,
-      slotName: this.names.playerName(slot),
-      received: (pkt.items ?? []).length,
-      created: res.created,
-      tsLower,
-      tsUpper: now,
-    });
     if (res.created) await this.loadHistory(roomId);
   }
 
@@ -755,7 +747,7 @@ export class ApSessionService {
     team: number;
     dstSlot: number;
     items: readonly NetworkItem[];
-    tsLower: number;
+    tsLower: number | null;
     tsUpper: number;
   }): Promise<{ created: number }> {
     const { roomId, team, dstSlot, items, tsLower, tsUpper } = params;
@@ -815,6 +807,15 @@ export class ApSessionService {
     return keys;
   }
 
+  /** Le dernier instantane : chaque `Connected` et chaque balayage reussi en ecrivent un. */
+  private async lastFullRead(roomId: string, slot: number, before: number): Promise<number | null> {
+    const snap = await db.snapshots
+      .where('[roomId+slot+ts]')
+      .between([roomId, slot, Dexie.minKey], [roomId, slot, before], true, false)
+      .last();
+    return snap?.ts ?? null;
+  }
+
   private async knownLocationIds(roomId: string, slot: number): Promise<Set<number>> {
     return (await this.locationIdsOf(roomId, slot)).known;
   }
@@ -840,11 +841,12 @@ export class ApSessionService {
 
   private async onLocationInfo(pkt: LocationInfoPacket): Promise<void> {
     const roomId = this.currentRoomId;
-    if (!roomId) return;
+    const own = this.ownSlot();
+    if (!roomId || own === null) return;
     const patched: ApEvent[] = [];
 
     for (const info of pkt.locations ?? []) {
-      const key = `${roomId}|i:${this.team}:${this.ownSlot()}:${info.location}`;
+      const key = placedDedupKey(roomId, this.team, own, info.location);
       const row = await db.events.where('dedupKey').equals(key).first();
       if (!row || row.tsPrecision !== 'approx') continue;
       // Dans LocationInfo, `player` est le destinataire.
@@ -913,7 +915,8 @@ export class ApSessionService {
       hints.push(...(value as Hint[]));
     }
     if (answered) this.hintsFromServer.set(true);
-    if (hints.length) await this.ingestHints(hints, now);
+    // Pendant l'ecoute, `SetNotify` tenait les hints de tous les slots : un inconnu est ne dans un trou.
+    if (hints.length) await this.ingestHints(hints, now, lastCoveredBefore(this.priorCoverage, now));
   }
 
   private async onSetReply(pkt: SetReplyPacket, now: number): Promise<void> {
@@ -924,7 +927,7 @@ export class ApSessionService {
     }
     if (!parseHintsKey(pkt.key) || !Array.isArray(pkt.value)) return;
     this.hintsFromServer.set(true);
-    await this.ingestHints(pkt.value as Hint[], now);
+    await this.ingestHints(pkt.value as Hint[], now, this.hintsReadAt ?? lastCoveredBefore(this.priorCoverage, now));
   }
 
   /** Derives de la ligne, pas du `dedupKey` : les anciens hints portent un hachage de minute. */
@@ -941,13 +944,11 @@ export class ApSessionService {
     return out;
   }
 
-  private async ingestHints(hints: readonly Hint[], now: number): Promise<number> {
+  private async ingestHints(hints: readonly Hint[], now: number, tsLower: number | null): Promise<number> {
     const roomId = this.currentRoomId;
     const sessionId = this.sessionId;
     if (!roomId || sessionId === null) return 0;
-
-    // Le data storage ne garde aucune date : bornes depuis l'ouverture de la room.
-    const tsLower = this.roomCreatedAt ?? now;
+    this.hintsReadAt = now;
     const gaps = computeHintGaps({
       team: this.team,
       hints,
@@ -1011,10 +1012,9 @@ export class ApSessionService {
   }
 
   private between(key: 'line.hint.title' | 'line.granted.title' | 'line.gap.title', row: ApEvent): string {
-    return this.i18n.t(key, {
-      from: this.i18n.datetime(row.tsLower!),
-      to: this.i18n.datetime(row.tsUpper!),
-    });
+    const to = this.i18n.datetime(row.tsUpper!);
+    if (row.tsLower === null) return this.i18n.t(`${key}.before`, { to });
+    return this.i18n.t(key, { from: this.i18n.datetime(row.tsLower), to });
   }
 
   private renderStoredHint(row: ApEvent, entrance: string): void {
@@ -1274,14 +1274,13 @@ export class ApSessionService {
     const closed = sessions.filter((s) => s.endedAt !== null || s.lastHeartbeatAt > s.startedAt);
     if (!closed.length) return;
 
-    const written = await rebuildPresenceRows({
+    await rebuildPresenceRows({
       roomId,
       team: pkt.team,
       slots: pkt.players.map((p) => p.slot),
       sessions: closed,
       textClientSlots: this.textClientSlots,
     });
-    this.presenceRebuilt.set(written);
   }
 
   /** Chaque passage diffuse un Join et un Part a toute la room : seulement sur un trou. */
@@ -1318,7 +1317,6 @@ export class ApSessionService {
   ): Promise<void> {
     const token = ++this.sweepToken;
     const targets = selectSweepTargets(this.slotInfo, ownSlot);
-    const tsLower = lastCoveredBefore(this.priorCoverage, now) ?? this.roomCreatedAt ?? now;
     const url = this.socket.url ?? candidateUrls(this.params!.host, this.params!.port)[0];
 
     const progress: SweepProgress = {
@@ -1334,6 +1332,7 @@ export class ApSessionService {
       gapMs: decision.gapMs,
     };
     this.sweep.set({ ...progress });
+    let succeeded = 0;
 
     for (const target of targets) {
       if (token !== this.sweepToken) return;
@@ -1356,6 +1355,23 @@ export class ApSessionService {
         progress.failed.push({ slot: target.name, error: outcome.error });
         if (outcome.fatal) break;
       } else if (outcome.checkedLocations && outcome.slot !== undefined) {
+        succeeded++;
+        // Lue avant l'instantane de ce passage, qui deviendra la lecture suivante.
+        const tsLower = unseenLowerBound(
+          this.priorCoverage,
+          await this.lastFullRead(roomId, outcome.slot, now),
+          now,
+        );
+        if (this.sessionId !== null) {
+          await db.snapshots.add({
+            roomId,
+            team: outcome.team ?? 0,
+            slot: outcome.slot,
+            ts: now,
+            sessionId: this.sessionId,
+            checkedLocations: [...outcome.checkedLocations].sort((a, b) => a - b),
+          });
+        }
         await this.recordSlotTotals(
           roomId,
           outcome.slot,
@@ -1407,7 +1423,8 @@ export class ApSessionService {
     progress.current = null;
     this.sweep.set({ ...progress });
 
-    await db.settings.put({ key: LAST_SWEEP_KEY(roomId), value: now });
+    // Le trou se mesure depuis cette date : notee apres un echec total, il ne serait plus repris.
+    if (succeeded) await db.settings.put({ key: LAST_SWEEP_KEY(roomId), value: now });
     if (progress.created || progress.itemsRecovered || progress.contentFilled) {
       await this.loadHistory(roomId);
       await this.refreshCoverage(roomId, Date.now());
@@ -1488,15 +1505,14 @@ export class ApSessionService {
   }
 
   /** Tout le journal, pas `feed`. Une reponse de plus que `SEARCH_LIMIT` signale la coupe. */
-  async searchFeed(query: string): Promise<ApEvent[]> {
+  async searchFeed(match: (e: ApEvent) => boolean): Promise<ApEvent[]> {
     const roomId = this.roomId();
-    const q = normalizeQuery(query);
-    if (!roomId || !q) return [];
+    if (!roomId) return [];
     const rows = await db.events
       .where('[roomId+ts]')
       .between([roomId, Dexie.minKey], [roomId, Dexie.maxKey])
       .reverse()
-      .filter((e) => matchesSearch(e, q))
+      .filter(match)
       .limit(SEARCH_LIMIT + 1)
       .toArray();
     rows.reverse();
@@ -1575,8 +1591,8 @@ export class ApSessionService {
     const sessions = await db.sessions.where('roomId').equals(roomId).toArray();
     const cov = mergeCoverage(sessions, now);
     this.coverage.set(cov);
-    const room = await db.rooms.get(roomId);
-    const from = room?.createdAt ?? cov[0]?.from ?? now;
+    // Avant la premiere ecoute, rien ne dit depuis quand la room existe.
+    const from = cov[0]?.from ?? now;
     this.gapTotalMs.set(gapDuration(cov, from, now));
   }
 

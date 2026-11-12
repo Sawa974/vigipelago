@@ -13,6 +13,7 @@ import { mergeCoverage } from '../ingest/coverage';
 import { rebuildPresenceRows } from '../ingest/presence-store';
 import {
   archiveRoomIds,
+  closeImportedSession,
   estimateClockOffset,
   planMerge,
   sessionIdentity,
@@ -195,7 +196,7 @@ export class ArchiveService {
             continue;
           }
           const newId = (await db.sessions.add({
-            ...session,
+            ...closeImportedSession(session),
             importedFrom: header.exportId,
           })) as number;
           byIdentity.set(identity, newId);

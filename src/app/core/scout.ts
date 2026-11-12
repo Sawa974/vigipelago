@@ -159,7 +159,7 @@ export function scoutSlot(opts: ScoutOptions): Promise<ScoutOutcome> {
               pendingLocations = false;
               maybeFinish();
             }, LOCATION_INFO_TIMEOUT_MS);
-          });
+          }, (e: unknown) => finish({ error: e instanceof Error ? e.message : String(e) }));
         } else if (p.cmd === 'LocationInfo') {
           const info = p as LocationInfoPacket;
           for (const item of info.locations ?? []) outcome.items?.set(item.location, item);

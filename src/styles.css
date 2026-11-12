@@ -313,3 +313,21 @@ dialog::backdrop {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Segments des barres par type d'objet, partages par Statistiques et Joueurs. */
+.cseg.c-progression {
+  background: var(--class-progression);
+}
+.cseg.c-useful {
+  background: var(--class-useful);
+}
+.cseg.c-filler {
+  background: var(--class-filler-mark);
+}
+.cseg.c-trap {
+  background: var(--class-trap);
+}
+.cseg.c-unknown {
+  background: var(--nodata);
+  box-shadow: inset 0 0 0 1px var(--nodata-edge);
+}

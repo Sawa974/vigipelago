@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0
+
+**Summary table.** The Statistics summary has five fixed columns (player, game, progress, items, deaths), each value
+above a gauge. Columns can be hidden, per game.
+
+**Console filters.** *Show only* narrows the console to categories (items, goals, hints, deaths, chat, server) and
+to chosen slots, across the whole game history.
+
+**More accurate times** for lines recovered after a gap.
+
+**New to Archipelago?** The home screen links to archipelago.gg.
+
+**Fixes.** Percentages now show two decimals, and many fixes from a full code review.
+
 ## 0.12
 
 **One tab listens at a time.** Opening Vigipelago in a second tab no longer cuts off the first one's session. The

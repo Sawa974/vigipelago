@@ -30,7 +30,7 @@ import {
   type LocationFilter,
 } from '../select/locations';
 import { DEATH_KNOWLEDGE_LABEL, buildDeathTally } from '../select/deaths';
-import { clientStatusLabel, isGoalReached, resolveSlotStatus } from '../ingest/client-status';
+import { isGoalReached, resolveSlotStatus } from '../ingest/client-status';
 import { FLOW_ROW_LIMIT, buildFlows, type FlowRow } from '../select/flows';
 import { classSegments, countEvents } from '../select/progress';
 import { shortStamp } from '../select/stamp';
@@ -38,6 +38,7 @@ import { buildHintEconomy } from '../select/hint-economy';
 import { buildSendRows, filterSendRows, type SendStatus } from '../select/sends';
 import { fallbackNames } from '../select/fallback-names';
 import { usesTwelveHours } from '../select/date-format';
+import { truncPercent } from '../select/percent';
 
 const RELOAD_THROTTLE_MS = 15_000;
 
@@ -98,8 +99,7 @@ export class PlayersTab {
   protected readonly selected = signal<number | null>(null);
   protected readonly loading = signal(false);
   protected readonly rowLimit = ITEM_ROW_LIMIT;
-  protected readonly classGlyph = ITEM_CLASS_GLYPH;
-  protected readonly classLabel = ITEM_CLASS_LABEL;
+  protected readonly pct = truncPercent;
 
   protected readonly text = signal('');
   protected readonly status = signal<ItemFilter>('all');
@@ -129,7 +129,7 @@ export class PlayersTab {
   private readonly slotHintCostObservedFor = signal<number | null>(null);
   private readonly roomHintCost = signal<number | null>(null);
   private readonly roomCheckPoints = signal<number | null>(null);
-  /** Notre slot seulement : `db.snapshots` n'est ecrit qu'au `Connected`. */
+  /** Ecrit au `Connected` pour notre slot, au balayage reussi pour les autres. */
   private readonly snapshot = signal<number[] | null>(null);
   private readonly loadedAt = signal(0);
   private readonly loadedSlot = signal<number | null>(null);
@@ -317,18 +317,9 @@ export class PlayersTab {
 
   protected readonly flowRowLimit = FLOW_ROW_LIMIT;
 
-  protected readonly roomHintCostPercent = computed(() => this.roomHintCost());
-
   protected readonly hintBalanceFreshness = computed(() => {
     if (this.ownSlotSelected() && this.ap.state() === 'online') return this.t('tile.fresh.now');
     return this.t('tile.fresh.sweep');
-  });
-
-  /** Construite ici et non dans le gabarit : `??` y lie moins fort que `+`. */
-  protected readonly locMeterLabel = computed(() => {
-    const t = this.locTally();
-    const done = t.checked;
-    return `${done} / ${t.total}`;
   });
 
   /** Le catalogue du jeu deborde la seed : la liste des « non fait » n'est qu'une borne. */
@@ -354,10 +345,6 @@ export class PlayersTab {
     this.outbound().some((e) => e.kind === 'release'),
   );
 
-  protected statusLabel(status: number | null): string {
-    return clientStatusLabel(status, this.t);
-  }
-
   protected readonly progressTile = computed(() => {
     const t = this.locTally();
     const goal = this.slotGoal();
@@ -377,7 +364,7 @@ export class PlayersTab {
     }
     if (this.released()) {
       return {
-        value: t.ratio !== null ? `${(t.ratio * 100).toFixed(0)} %` : '—',
+        value: t.total !== null ? `${truncPercent(t.checked, t.total)} %` : '—',
         trophy: false,
         caption: this.t('tile.release'),
         note: this.t('tile.release.note'),
@@ -386,7 +373,7 @@ export class PlayersTab {
     }
     if (t.ratio !== null && t.ratio >= 1) {
       return {
-        value: '100 %',
+        value: '100.00 %',
         trophy: false,
         caption: this.t('tile.allFound'),
         note: this.t('tile.allFound.note'),
@@ -403,7 +390,7 @@ export class PlayersTab {
       };
     }
     return {
-      value: `${(t.ratio * 100).toFixed(0)} %`,
+      value: `${truncPercent(t.checked, t.total ?? 1)} %`,
       trophy: false,
       caption: this.t('tile.checksLeft', { count: t.remaining ?? 0 }),
       note: this.t('pl.locNote.total', { total: t.total ?? 0 }),
@@ -599,10 +586,14 @@ export class PlayersTab {
     this.reloadTimer = null;
   }
 
+  /** Seule la derniere lecture ecrit : une lecture lente de A finirait sinon sur le panneau de B. */
+  private reloadSeq = 0;
+
   /** `silent` : un rafraichissement du meme slot n'attenue pas le panneau. */
   protected async reload(slot: number, silent = true): Promise<void> {
     const roomId = this.ap.roomId();
     if (!roomId) return;
+    const seq = ++this.reloadSeq;
     if (!silent) this.loading.set(true);
     try {
       const roster = this.roster();
@@ -626,6 +617,7 @@ export class PlayersTab {
         db.dataPackages.bulkGet(games),
         db.rooms.get(roomId),
       ]);
+      if (seq !== this.reloadSeq) return;
       const byGame = new Map(packs.filter((p) => p !== undefined).map((p) => [p!.game, p!]));
       const bySlot = <T>(pick: (p: CachedGamePackage) => T) =>
         new Map(
@@ -651,7 +643,7 @@ export class PlayersTab {
       this.loadedSlot.set(slot);
       this.loadedAt.set(Date.now());
     } finally {
-      this.loading.set(false);
+      if (seq === this.reloadSeq) this.loading.set(false);
     }
   }
 

@@ -31,9 +31,12 @@ export function buildHintEconomy(input: HintEconomyInput): HintEconomy {
 
   const perCheck = typeof locationCheckPoints === 'number' ? locationCheckPoints : null;
 
+  // Meme operation que `get_hint_cost` de MultiServer.py, flottants compris : le serveur tronque.
   const computed =
     hintCost !== null && totalLocations !== null
-      ? Math.ceil((hintCost / 100) * totalLocations)
+      ? hintCost
+        ? Math.max(1, Math.trunc(hintCost * 0.01 * totalLocations))
+        : 0
       : null;
 
   const observationStillValid =

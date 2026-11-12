@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   signal,
@@ -9,12 +10,13 @@ import {
   type ElementRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ApSessionService, FEED_LIMIT, SEARCH_LIMIT } from '../core/ap-session.service';
+import { ApSessionService, FEED_FILTER_KEY, FEED_LIMIT, SEARCH_LIMIT } from '../core/ap-session.service';
 import { judgeCommand, type VerdictMessage } from '../core/command-gate';
 import { offlineMessage } from '../core/offline-message';
 import { I18n } from '../i18n/i18n.service';
-import type { ApEvent, EventKind } from '../db/db';
-import { mergeSearchWithLive, normalizeQuery } from '../select/feed-search';
+import { db, type ApEvent, type EventKind } from '../db/db';
+import { FEED_CATEGORIES, feedMatcher, isFilterActive, type FeedCategory, type FeedFilter } from '../select/feed-filter';
+import { mergeSearchWithLive } from '../select/feed-search';
 import { toolChatterKeys } from '../select/tool-chatter';
 
 const IDLE_STATES = new Set(['idle', 'fatal', 'unreachable']);
@@ -33,6 +35,25 @@ export class ConsoleTab {
 
   protected readonly filter = signal('');
   protected readonly autoScroll = signal(true);
+
+  protected readonly categories = FEED_CATEGORIES;
+  protected readonly checkedCategories = signal<ReadonlySet<FeedCategory>>(new Set());
+  protected readonly slotChecked = signal(false);
+
+  protected readonly ownName = computed(() => {
+    const slot = this.ap.ownSlot();
+    return this.ap.players().find((p) => p.slot === slot)?.name ?? null;
+  });
+
+  private readonly feedFilter = computed<FeedFilter>(() => ({
+    categories: this.checkedCategories(),
+    slot: this.slotChecked() ? this.ap.ownSlot() : null,
+  }));
+
+  protected readonly filterActive = computed(() => isFilterActive(this.feedFilter()));
+
+  /** `null` sans texte ni case : le journal vif suffit. */
+  private readonly matcher = computed(() => feedMatcher(this.filter(), this.feedFilter()));
 
   /** `null` sans filtre actif : le journal vif suffit. */
   private readonly searchRows = signal<ApEvent[] | null>(null);
@@ -70,33 +91,41 @@ export class ConsoleTab {
 
   /** Sous recherche, les lignes vives completent l'instantane de la base, sinon il reste fige. */
   protected readonly visibleEvents = computed(() => {
-    const q = normalizeQuery(this.filter());
-    const rows = q ? mergeSearchWithLive(this.searchRows() ?? [], this.ap.feed(), q) : this.ap.feed();
+    const match = this.matcher();
+    const rows = match ? mergeSearchWithLive(this.searchRows() ?? [], this.ap.feed(), match) : this.ap.feed();
     const chatter = toolChatterKeys(rows);
     return rows.filter((e) => !chatter.has(e.dedupKey));
   });
 
   protected readonly feedTruncated = computed(
-    () => !this.filter().trim() && this.ap.feed().length >= FEED_LIMIT,
+    () => !this.matcher() && this.ap.feed().length >= FEED_LIMIT,
   );
 
   /** La recherche rapporte une ligne de plus que le plafond pour signaler le debordement. */
   protected readonly searchTruncated = computed(
-    () => !!this.filter().trim() && (this.searchRows()?.length ?? 0) > SEARCH_LIMIT,
+    () => !!this.matcher() && (this.searchRows()?.length ?? 0) > SEARCH_LIMIT,
   );
 
   constructor() {
     // Differee : sinon chaque frappe balaierait toute la room en base.
     effect(() => {
-      const q = this.filter().trim();
+      const match = this.matcher();
       if (this.searchTimer) clearTimeout(this.searchTimer);
-      if (!q) {
+      if (!match) {
         this.searchRows.set(null);
         this.searching.set(false);
         return;
       }
       this.searching.set(true);
-      this.searchTimer = setTimeout(() => void this.runSearch(q), 250);
+      this.searchTimer = setTimeout(() => void this.runSearch(match), 250);
+    });
+    inject(DestroyRef).onDestroy(() => {
+      if (this.searchTimer) clearTimeout(this.searchTimer);
+    });
+
+    effect(() => {
+      const roomId = this.ap.roomId();
+      if (roomId) void this.loadFilter(roomId);
     });
 
     effect(() => {
@@ -108,12 +137,49 @@ export class ConsoleTab {
     });
   }
 
-  private async runSearch(q: string): Promise<void> {
-    const rows = await this.ap.searchFeed(q);
-    // Une frappe plus recente a pu changer la requete.
-    if (this.filter().trim() !== q) return;
+  private async runSearch(match: (e: ApEvent) => boolean): Promise<void> {
+    const rows = await this.ap.searchFeed(match);
+    // Une frappe ou une case plus recente a pu changer le critere.
+    if (this.matcher() !== match) return;
     this.searchRows.set(rows);
     this.searching.set(false);
+  }
+
+  private async loadFilter(roomId: string): Promise<void> {
+    const row = await db.settings.get(FEED_FILTER_KEY(roomId));
+    if (this.ap.roomId() !== roomId) return;
+    const v = (row?.value ?? {}) as { categories?: unknown; slot?: unknown };
+    const saved = Array.isArray(v.categories) ? v.categories : [];
+    this.checkedCategories.set(new Set(FEED_CATEGORIES.filter((c) => saved.includes(c))));
+    this.slotChecked.set(v.slot === true);
+  }
+
+  private saveFilter(): void {
+    const roomId = this.ap.roomId();
+    if (!roomId) return;
+    void db.settings.put({
+      key: FEED_FILTER_KEY(roomId),
+      value: { categories: [...this.checkedCategories()], slot: this.slotChecked() },
+    });
+  }
+
+  protected toggleCategory(c: FeedCategory): void {
+    const next = new Set(this.checkedCategories());
+    if (next.has(c)) next.delete(c);
+    else next.add(c);
+    this.checkedCategories.set(next);
+    this.saveFilter();
+  }
+
+  protected toggleSlot(): void {
+    this.slotChecked.update((v) => !v);
+    this.saveFilter();
+  }
+
+  protected clearFilter(): void {
+    this.checkedCategories.set(new Set());
+    this.slotChecked.set(false);
+    this.saveFilter();
   }
 
   /** Pas de liste blanche de commandes : seul le serveur sait ce qu'il accepte. */
@@ -165,6 +231,10 @@ export class ConsoleTab {
 
   protected time(ts: number): string {
     return this.i18n.clock(ts, true);
+  }
+
+  protected catLabel(c: FeedCategory): string {
+    return this.t(`console.cat.${c}`);
   }
 
   protected kindLabel(kind: EventKind): string {

@@ -19,21 +19,21 @@ const BASE: HintEconomyInput = {
 describe('buildHintEconomy', () => {
   it('calcule le cout en points et en checks a partir du total du slot', () => {
     const e = buildHintEconomy(BASE);
-    expect(e.costPoints).toBe(137);
-    expect(e.checksPerHint).toBe(137);
+    expect(e.costPoints).toBe(136);
+    expect(e.checksPerHint).toBe(136);
     expect(e.perCheck).toBe(1);
   });
 
   it('donne un cout different a deux slots de la meme room', () => {
     const petit = buildHintEconomy({ ...BASE, totalLocations: 120, checked: 0 });
     expect(petit.checksPerHint).toBe(12);
-    expect(buildHintEconomy(BASE).checksPerHint).toBe(137);
+    expect(buildHintEconomy(BASE).checksPerHint).toBe(136);
   });
 
   it('divise par les points gagnes a chaque check', () => {
     const e = buildHintEconomy({ ...BASE, locationCheckPoints: 4 });
-    expect(e.costPoints).toBe(137);
-    expect(e.checksPerHint).toBe(35);
+    expect(e.costPoints).toBe(136);
+    expect(e.checksPerHint).toBe(34);
   });
 
   it('deduit la depense du solde, et les hints gratuits n y entrent pas', () => {
@@ -53,7 +53,7 @@ describe('buildHintEconomy', () => {
     const e = buildHintEconomy({ ...BASE, hintPoints: null });
     expect(e.balance).toBeNull();
     expect(e.spentAtLeast).toBeNull();
-    expect(e.checksPerHint).toBe(137);
+    expect(e.checksPerHint).toBe(136);
   });
 
   it('sans les reglages de la room, aucun cout n est invente', () => {
@@ -85,10 +85,9 @@ describe('buildHintEconomy', () => {
     expect(e.earned).toBe(0);
   });
 
-  it('arrondit le cout vers le haut : un pourcentage tombe rarement juste', () => {
-    // 10 % de 1365 = 136,5 : arrondi au-dessus.
-    const e = buildHintEconomy({ ...BASE, totalLocations: 1365 });
-    expect(e.costPoints).toBe(137);
+  it('tronque comme le serveur, sans descendre sous un point', () => {
+    expect(buildHintEconomy({ ...BASE, totalLocations: 1365 }).costPoints).toBe(136);
+    expect(buildHintEconomy({ ...BASE, hintCost: 1, totalLocations: 50 }).costPoints).toBe(1);
   });
 
   it('une baisse relevee remplace le calcul, et le marque exact', () => {
@@ -100,14 +99,14 @@ describe('buildHintEconomy', () => {
 
   it('sans observation, le cout reste calcule et marque approche', () => {
     const e = buildHintEconomy(BASE);
-    expect(e.costPoints).toBe(137);
+    expect(e.costPoints).toBe(136);
     expect(e.costExact).toBe(false);
   });
 
   it('une observation faite sous un autre pourcentage est perimee', () => {
     const e = buildHintEconomy({ ...BASE, hintCost: 20, observedCost: 136, observedFor: 10 });
     expect(e.costExact).toBe(false);
-    expect(e.costPoints).toBe(274);
+    expect(e.costPoints).toBe(273);
   });
 });
 

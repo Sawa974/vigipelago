@@ -239,7 +239,7 @@
               />
               <div class="segmented" role="group" [attr.aria-label]="t('pl.items.status')">
                 @for (f of statusFilters(); track f.key) {
-                  <button type="button" [class.on]="status() === f.key" [title]="t(f.title)" (click)="status.set(f.key)">
+                  <button type="button" [class.on]="status() === f.key" [attr.aria-pressed]="status() === f.key" [title]="t(f.title)" (click)="status.set(f.key)">
                     {{ t(f.label) }}
                   </button>
                 }
@@ -344,7 +344,7 @@
               <span class="hl">
                 @if (locTally().ratio !== null) {
                   {{ locTally().checked }} / {{ locTally().total }}
-                  <span class="muted">({{ (locTally().ratio! * 100).toFixed(1) }} %)</span>
+                  <span class="muted">({{ pct(locTally().checked, locTally().total!) }} %)</span>
                 } @else {
                   {{ t('pl.count.checks', { count: locTally().checked }) }}
                   <span class="muted">· {{ t('pl.totalUnknown') }}</span>
@@ -364,7 +364,7 @@
                 @for (f of locStatusFilters(); track f.key) {
                   <button
                     type="button"
-                    [class.on]="locStatus() === f.key"
+                    [class.on]="locStatus() === f.key" [attr.aria-pressed]="locStatus() === f.key"
                     [title]="t(f.title)"
                     (click)="locStatus.set(f.key)"
                   >
@@ -482,7 +482,7 @@
                 @for (f of sendStatusFilters; track f.key) {
                   <button
                     type="button"
-                    [class.on]="sendStatus() === f.key"
+                    [class.on]="sendStatus() === f.key" [attr.aria-pressed]="sendStatus() === f.key"
                     [title]="t(f.title)"
                     (click)="sendStatus.set(f.key)"
                   >

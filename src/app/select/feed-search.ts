@@ -13,15 +13,15 @@ export function matchesSearch(e: ApEvent, normalizedQuery: string): boolean {
 export function mergeSearchWithLive(
   base: readonly ApEvent[],
   live: readonly ApEvent[],
-  normalizedQuery: string,
+  match: ((e: ApEvent) => boolean) | null,
 ): ApEvent[] {
-  if (!normalizedQuery) return [...base];
+  if (!match) return [...base];
   const seen = new Set<string>();
   for (const e of base) seen.add(e.dedupKey);
 
   const extra: ApEvent[] = [];
   for (const e of live) {
-    if (seen.has(e.dedupKey) || !matchesSearch(e, normalizedQuery)) continue;
+    if (seen.has(e.dedupKey) || !match(e)) continue;
     seen.add(e.dedupKey);
     extra.push(e);
   }

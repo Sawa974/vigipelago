@@ -115,8 +115,7 @@ export function buildProgress(
 /** Denominateur : somme des totaux connus, une borne basse tant qu'un slot manque. */
 export interface MultiworldItems {
   placed: number;
-  found: number;
-  /** Le numerateur du ratio, et non `found` : meme perimetre que `placed`. */
+  /** Les checks des seuls slots au total connu : meme perimetre que `placed`. */
   foundInKnown: number;
   ratio: number | null;
   slotsUnknown: number;
@@ -128,11 +127,9 @@ export function buildMultiworldItems(
   counts: EventCounts,
 ): MultiworldItems {
   let placed = 0;
-  let found = 0;
   let foundInKnown = 0;
   let slotsUnknown = 0;
   for (const p of progress) {
-    found += p.checked;
     if (p.total === null) {
       slotsUnknown++;
       continue;
@@ -142,7 +139,6 @@ export function buildMultiworldItems(
   }
   return {
     placed,
-    found,
     foundInKnown,
     ratio: placed ? Math.min(1, foundInKnown / placed) : null,
     slotsUnknown,

@@ -24,6 +24,15 @@ function stateAt(intervals: ReturnType<typeof replay>, t: number): string | unde
 }
 
 describe('replayPresence', () => {
+  it('ne tient pas un hint pour une activite du detenteur de la location', () => {
+    expect(stateAt(replay([{ ts: 10 * M, kind: 'hint', srcSlot: 1, tags: null }]), 20 * M)).toBe('unknown');
+  });
+
+  it('ignore une ligne a l heure approchee', () => {
+    expect(stateAt(replay([{ ...check(10 * M, 1), approx: true }]), 20 * M)).toBe('unknown');
+    expect(stateAt(replay([check(10 * M, 1)]), 20 * M)).toBe('online');
+  });
+
   it('reconstruit la sequence exacte du bug rapporte', () => {
     const intervals = replay([
       join(10 * M, 1, ['AP']),

@@ -19,7 +19,13 @@ export async function rebuildPresenceRows(p: PresenceRebuild): Promise<number> {
 
   const intervals = replayPresence({
     ...p,
-    events: events.map((e) => ({ ts: e.ts, kind: e.kind, srcSlot: e.srcSlot, tags: e.tags })),
+    events: events.map((e) => ({
+      ts: e.ts,
+      kind: e.kind,
+      srcSlot: e.srcSlot,
+      tags: e.tags,
+      approx: e.tsPrecision === 'approx',
+    })),
   });
 
   await db.transaction('rw', db.presence, async () => {
